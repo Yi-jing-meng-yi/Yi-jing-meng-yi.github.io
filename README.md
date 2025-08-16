@@ -25,12 +25,4 @@
 - QQ 2024335187
 - 相关讨论群 1053163289
 
-**欢迎您的加入**
-<a href="https://github.com" style="
-  display: inline-block;
-  padding: 8px 16px;
-  background: #007bff;
-  color: white;
-  border-radius: 4px;
-  text-decoration: none;
-">点击按钮</a>
+**欢迎您的加入和您奇妙的宝贵构想**
