@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>门 - Demo</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="scene-container">
+    <div id="story-text"></div>
+    <div id="white-board"></div>
+    <div id="movie-bars">
+        <div id="top-bar"></div>
+        <div id="bottom-bar"></div>
+    </div>
+    <div id="title-screen">
+        <h1 id="title">门</h1>
+        <span id="demo-tag">demo</span>
+        <ul id="menu-options">
+            <li id="new-game">新的开始</li>
+            <li id="continue-game">继续?</li>
+            <li id="settings">设置</li>
+        </ul>
+        <div id="continue-input" style="display:none;">
+            <input type="text" id="save-code" placeholder="请输入存档码">
+            <button id="load-save">加载</button>
+        </div>
+        <div id="settings-panel" style="display:none;">
+            <label>亮度(γ值): <input type="range" id="brightness" min="0.5" max="1.5" step="0.01" value="1"></label>
+            <label>全屏: <input type="checkbox" id="fullscreen"></label>
+        </div>
+    </div>
+</div>
+<script src="story.json" type="application/json"></script>
+<script src="script.js"></script>
+</body>
+</html>
