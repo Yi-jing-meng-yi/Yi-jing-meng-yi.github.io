@@ -1,38 +1,311 @@
-<!DOCTYPE html>
+<!doctype html>
+
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>门 - Demo</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>《门》 - Demo</title>
+  <style>
+    /* 请自行提供江西拙楷字体文件，并在下面 @font-face 中替换 src 路径 */
+    @font-face{font-family: 'JiangXiZhuoKai'; src: local('JiangXiZhuoKai'), url('./fonts/JiangXiZhuoKai.woff2') format('woff2'); font-weight: 400; font-style: normal;}
+    :root{
+      --fade: 0.88s;
+      --hold: 3.45s;
+      --final-move-delay: 2.34s;
+      --final-move-duration: 1.8s;
+      --hover-red: #ff3b3b;
+      --blood: #8b0000;
+      --bg: #000;
+      --white: #fff;
+      --letterbox-height: 10vh; /* base for desktop; mobile will use safe-area */
+    }
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--white);font-family: 'JiangXiZhuoKai', serif;overflow:hidden}/* 背景与中心文字区 */
+.stage{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+.prose{position:relative;z-index:5;text-align:center;pointer-events:none}
+.line{opacity:0;transform:translateY(8px);font-size:clamp(18px,2.2vw,26px);white-space:pre-wrap}
+.line.show{animation:fadeIn var(--fade) forwards}
+@keyframes fadeIn{to{opacity:1;transform:none}}
+.line.hide{animation:fadeOut .35s forwards}
+@keyframes fadeOut{to{opacity:0;transform:translateY(-8px)}}
+
+/* 最后一句红色、底部继续提示 */
+.final{color:var(--blood);font-weight:700}
+.continue-hint{position:fixed;right:18px;bottom:18px;color:rgba(255,255,255,0.85);font-size:14px;z-index:40;cursor:pointer;display:none}
+
+/* 白色面板，从底向上出现（仅在最终阶段绘制） */
+.white-panel{position:fixed;left:0;right:0;bottom:0;height:0;background:var(--white);z-index:10;transition:height var(--final-move-duration) cubic-bezier(.2,.8,.2,1)}
+.white-panel.moving{height:100vh}
+
+/* 黑色条框（电影视角） */
+.letterbox-top,.letterbox-bottom{position:fixed;left:0;right:0;height:0;background:#000;z-index:30;transition:height .6s}
+.letterbox-top.on{height:calc(var(--letterbox-height) + env(safe-area-inset-top, 0px))}
+.letterbox-bottom.on{height:calc(var(--letterbox-height) + env(safe-area-inset-bottom, 0px))}
+
+/* 标题与菜单 */
+.menu-wrap{position:fixed;z-index:35;left:50%;transform:translateX(-50%);top:calc(var(--letterbox-height) + env(safe-area-inset-top,0px) + 6vh);width:100%;max-width:900px;text-align:center;opacity:0;transition:opacity .6s}
+.title{font-size:clamp(48px,8vw,120px);color:#111;margin:0}
+.subtitle{font-size:14px;color:#444;margin-top:6px}
+.menu{margin-top:2.6rem;display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+.menu button{background:transparent;border:2px solid rgba(0,0,0,0.06);padding:12px 20px;border-radius:8px;font-size:16px;cursor:pointer;transition:color .12s,transform .12s}
+.menu button:hover{color:var(--hover-red);transform:translateY(-3px)}
+
+/* 点击时整页淡黑 */
+.fade-overlay{position:fixed;inset:0;background:#000;opacity:0;z-index:60;pointer-events:none;transition:opacity .45s}
+.fade-overlay.on{opacity:1;pointer-events:auto}
+
+/* Win8 风格提示框（伪） */
+.win8-modal{position:fixed;left:50%;top:18%;transform:translateX(-50%);background:#f3f3f3;border:1px solid #ccc;padding:18px;border-radius:6px;z-index:80;min-width:320px;box-shadow:0 8px 30px rgba(0,0,0,.25);display:none}
+.win8-modal.show{display:block}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+.btn{padding:8px 12px;border-radius:4px;border:none;cursor:pointer}
+.btn.primary{background:#0078d7;color:#fff}
+
+/* 成就提示（模仿 Steam） */
+.achieve{position:fixed;right:18px;top:18px;background:rgba(30,30,30,0.95);color:#fff;padding:12px;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.5);transform:translateX(0);transition:transform .4s;z-index:90}
+.achieve.hide{transform:translateX(120%)}
+
+/* 响应式微调 */
+@media (max-width:720px){
+  .line{font-size:18px}
+  :root{--letterbox-height:6vh}
+  .menu{flex-direction:column}
+}
+
+  </style>
 </head>
 <body>
-<div id="scene-container">
-    <div id="story-text"></div>
-    <div id="white-board"></div>
-    <div id="movie-bars">
-        <div id="top-bar"></div>
-        <div id="bottom-bar"></div>
+  <div class="stage">
+    <div class="prose" id="prose"></div>
+  </div>  <div class="white-panel" id="whitePanel"></div>
+  <div class="letterbox-top" id="lt"></div>
+  <div class="letterbox-bottom" id="lb"></div>  <div class="menu-wrap" id="menuWrap">
+    <h1 class="title">门</h1>
+    <div class="subtitle">demo</div>
+    <div class="menu">
+      <button id="newBtn">新的开始</button>
+      <button id="continueBtn">继续？</button>
+      <button id="settingsBtn">设置</button>
+      <button id="achBtn">成就</button>
+      <button id="chapBtn">章节</button>
     </div>
-    <div id="title-screen">
-        <h1 id="title">门</h1>
-        <span id="demo-tag">demo</span>
-        <ul id="menu-options">
-            <li id="new-game">新的开始</li>
-            <li id="continue-game">继续?</li>
-            <li id="settings">设置</li>
-        </ul>
-        <div id="continue-input" style="display:none;">
-            <input type="text" id="save-code" placeholder="请输入存档码">
-            <button id="load-save">加载</button>
-        </div>
-        <div id="settings-panel" style="display:none;">
-            <label>亮度(γ值): <input type="range" id="brightness" min="0.5" max="1.5" step="0.01" value="1"></label>
-            <label>全屏: <input type="checkbox" id="fullscreen"></label>
-        </div>
+  </div>  <div class="fade-overlay" id="fadeOverlay"></div>  <div class="continue-hint" id="continueHint">点击继续</div>  <div class="win8-modal" id="win8Modal">
+    <div><strong>检测到你上次已进入本页</strong></div>
+    <div style="margin-top:8px">是否重新播放前言？</div>
+    <div class="modal-actions">
+      <button class="btn" id="modalNo">不需要</button>
+      <button class="btn primary" id="modalYes">再次观看</button>
     </div>
-</div>
-<script src="story.json" type="application/json"></script>
-<script src="script.js"></script>
-</body>
+  </div>  <!-- 简单的设置面板（通过 prompt 实现，避免复杂 UI） -->  <script>
+    // 内容与参数
+    const paragraphs = [
+      '你知道吗?',
+      '秉门，是活的',
+      '你经过祂，就会到另一个世界',
+      '相传文村的人找到了祂',
+      '于是一个村的人，都成了仙',
+      '于是，文村成了无人村',
+      '据说人成仙，就会留下自己的贪嗔痴',
+      '于是，文村吸引不少野鬼流入',
+      '前几年，有一伙人去找秉门',
+      '再也没有回来，有人说他们成了仙',
+      '但是有一个大师说/(血红色)"祂们成了鬼"'
+    ];
+
+    const fade = 880; // ms
+    const hold = 3450; // ms
+    const finalMoveDelay = 2340; // ms after final is shown
+    const finalMoveDuration = 1800; // ms for panel/animation
+
+    const prose = document.getElementById('prose');
+    const whitePanel = document.getElementById('whitePanel');
+    const lt = document.getElementById('lt');
+    const lb = document.getElementById('lb');
+    const menuWrap = document.getElementById('menuWrap');
+    const fadeOverlay = document.getElementById('fadeOverlay');
+    const continueHint = document.getElementById('continueHint');
+    const win8Modal = document.getElementById('win8Modal');
+
+    // 设备检测
+    const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+
+    // 记住是否已访问
+    const visited = localStorage.getItem('door_visited') || 0;
+    localStorage.setItem('door_visited', Number(visited) + 1);
+
+    // 如果是第二次进入或更多，展示 Win8 风格询问
+    if(Number(visited) >= 1){
+      setTimeout(()=>{ win8Modal.classList.add('show') }, 500);
+    } else {
+      // 首次直接播放
+      startPrologue();
+    }
+
+    document.getElementById('modalYes').addEventListener('click', ()=>{
+      win8Modal.classList.remove('show');
+      startPrologue(true);
+    });
+    document.getElementById('modalNo').addEventListener('click', ()=>{
+      win8Modal.classList.remove('show');
+      // 直接跳到后阶段
+      triggerTitleSequence();
+    });
+
+    // 逐句显示逻辑
+    function startPrologue(forceReplay){
+      prose.innerHTML = '';
+      let index = 0;
+      function showNext(){
+        if(index >= paragraphs.length) return onFinalShown();
+        const txt = paragraphs[index];
+        const isFinal = index === paragraphs.length -1;
+        const el = document.createElement('div');
+        el.className = 'line';
+        if(isFinal) el.classList.add('final');
+        // 支持中间内嵌血红色标记 (简单解析)
+        el.innerHTML = txt.replace(/血红色\"(.*?)\"/,'<span style="color:var(--blood)">$1</span>');
+        prose.appendChild(el);
+        // fade in
+        requestAnimationFrame(()=> el.classList.add('show'));
+
+        // hold then remove/replace
+        const totalHold = hold + fade;
+        setTimeout(()=>{
+          // 如果不是最后一句，淡出并移除
+          if(!isFinal){
+            el.classList.add('hide');
+            setTimeout(()=> el.remove(), 350);
+            index++; showNext();
+          } else {
+            // 最后一段处理（停留，并显示继续）
+            continueHint.style.display = 'block';
+            // 点击继续也可以触发后续
+            continueHint.onclick = triggerTitleSequence;
+            // 不自动触发title，这里等待用户或自动在 finalMoveDelay 后触发动画
+            setTimeout(()=> startFinalSequence(el), finalMoveDelay);
+          }
+        }, totalHold);
+      }
+      showNext();
+
+      // 成就：达到场景1 -> 初来驾到
+      setTimeout(()=> showAchievement('初来驾到','恭喜来到这里'), 500);
+    }
+
+    function startFinalSequence(finalEl){
+      // 1) 最终文字慢慢向上移动
+      finalEl.style.transition = `transform ${finalMoveDuration}ms cubic-bezier(.2,.8,.2,1)`;
+      finalEl.style.transform = 'translateY(-40vh)';
+
+      // 2) 白色面板自底向上出现
+      whitePanel.classList.add('moving');
+
+      // 3) 在白板填满后，显示电影视角和菜单（延迟与动画协调）
+      setTimeout(()=>{
+        lt.classList.add('on'); lb.classList.add('on');
+        // 使菜单显现
+        menuWrap.style.opacity = 1;
+        // 把白板渐变成浑浊（用 CSS 背景渐变替代）
+        whitePanel.style.background = 'linear-gradient(90deg, rgba(0,0,0,0.06), rgba(255,255,255,1))';
+        // 同时隐藏中心文字区
+        prose.style.opacity = 0;
+        // 标题和菜单已准备好
+      }, finalMoveDuration + 300);
+    }
+
+    function triggerTitleSequence(){
+      // 如果已触发过则直接展示
+      if(menuWrap.style.opacity === '1'){ return }
+      // 直接运行 final sequence (支持用户点击继续)
+      // 默认快速过渡：让白板到满，打开 letterbox
+      whitePanel.classList.add('moving');
+      setTimeout(()=>{ lt.classList.add('on'); lb.classList.add('on'); menuWrap.style.opacity = 1; prose.style.opacity = 0; }, 700);
+    }
+
+    // 菜单按钮交互
+    document.getElementById('newBtn').addEventListener('click', ()=>{
+      // 新的开始：清除保存、直接刷新场景（但需要保留设备检测要求）
+      localStorage.removeItem('door_savecode');
+      fadeOverlay.classList.add('on');
+      setTimeout(()=> location.reload(), 600);
+    });
+    document.getElementById('continueBtn').addEventListener('click', ()=>{
+      const code = prompt('请输入存档码（或留空查看本地自动存档）:');
+      if(code){
+        // 简单验证（示例）：尝试读取
+        const s = localStorage.getItem('door_save_'+code);
+        alert(s? '找到存档：' + s : '未找到存档码');
+      } else {
+        alert('本地自动存档: ' + (localStorage.getItem('door_autosave') || '无'));
+      }
+    });
+    document.getElementById('settingsBtn').addEventListener('click', ()=>{
+      const gamma = prompt('亮度 (γ) 值, 例如 1.0 (默认):', '1.0');
+      if(gamma !== null){
+        document.documentElement.style.filter = `brightness(${gamma})`;
+      }
+      const fs = confirm('是否切换到全屏？(请在支持的浏览器中确认)');
+      if(fs){
+        if(document.fullscreenEnabled) document.documentElement.requestFullscreen().catch(()=>{});
+      }
+      const dev = prompt('选择设备（auto / desktop / mobile）:', isMobile ? 'mobile' : 'desktop');
+      // 仅供展示：保存选择
+      localStorage.setItem('door_device_pref', dev);
+      alert('已保存设备选择: ' + dev);
+    });
+
+    document.getElementById('achBtn').addEventListener('click', ()=>{
+      showAchievement('测试成就','这是一个演示成就');
+    });
+    document.getElementById('chapBtn').addEventListener('click', ()=>{
+      alert('章节功能尚在开发中');
+    });
+
+    // 简单成就系统
+    function showAchievement(title,desc){
+      const el = document.createElement('div');
+      el.className = 'achieve';
+      el.innerHTML = `<strong>${title}</strong><div style="font-size:12px;margin-top:6px;color:#ddd">${desc}</div>`;
+      document.body.appendChild(el);
+      // 在滞留 2.43s 后划出屏幕（向右）
+      setTimeout(()=> el.classList.add('hide'), 2430);
+      // 完全移除
+      setTimeout(()=> el.remove(), 3000);
+    }
+
+    // 窗口聚焦/刷新时不要重置到场景1（用 localStorage 标记当前阶段）
+    // 这里我们把阶段存在 localStorage，但不强制页面跳转：
+    window.addEventListener('beforeunload', ()=>{
+      localStorage.setItem('door_last_stage','menu');
+    });
+
+    // 鼠标悬停反馈（手机版触摸有 :active）已用 CSS hover 处理
+
+    // 当用户点击任一菜单项，我们要实现悬浮变红 0.12s、点击后页面黑掉 0.45s
+    document.querySelectorAll('.menu button').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        // 视觉反馈在 CSS 中, 这里是点击后淡黑逻辑
+        fadeOverlay.classList.add('on');
+        setTimeout(()=>{
+          // 可以在此触发相应页面或继续流程
+          if(btn.id === 'newBtn') location.reload();
+          else fadeOverlay.classList.remove('on');
+        }, 600);
+      });
+    });
+
+    // 当首次访问但用户希望跳过前言，允许直接进入菜单
+    // 逻辑已在 modal No 的处理里
+
+    // 小提示：把自动保存放入 localStorage（示例）
+    localStorage.setItem('door_autosave','场景1-到达');
+
+    // Accessibility: 允许点击页面任意处触发继续（便于手机）
+    document.body.addEventListener('click', (e)=>{
+      // 如果 menu 已显示，点击不影响
+      if(menuWrap.style.opacity === '1') return;
+      // 如果 prose 区还有文本并且最后已出现，触发 title
+      if(continueHint.style.display === 'block') triggerTitleSequence();
+    }, {passive:true});
+
+  </script></body>
 </html>
