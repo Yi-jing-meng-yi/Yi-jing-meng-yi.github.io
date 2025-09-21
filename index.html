@@ -1,311 +1,531 @@
 <!doctype html>
-
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>《门》 - Demo</title>
+  <title>灵境工作室 Mystic Realm Studio</title>
+
+  <!-- 强化 CSP: 禁止 eval/unsafe-inline 样式外部脚本只允许同源 (注意: GitHub Pages 需要在服务端 header 也设置，meta 方式有兼容限制) -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'none'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';">
+
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    /* 请自行提供江西拙楷字体文件，并在下面 @font-face 中替换 src 路径 */
-    @font-face{font-family: 'JiangXiZhuoKai'; src: local('JiangXiZhuoKai'), url('./fonts/JiangXiZhuoKai.woff2') format('woff2'); font-weight: 400; font-style: normal;}
+    /* --- 基础重置 --- */
+    html,body{height:100%;margin:0;padding:0;overflow:hidden;font-family: "Microsoft YaHei","PingFang SC", "Noto Sans CJK SC",sans-serif;}
     :root{
-      --fade: 0.88s;
-      --hold: 3.45s;
-      --final-move-delay: 2.34s;
-      --final-move-duration: 1.8s;
-      --hover-red: #ff3b3b;
-      --blood: #8b0000;
-      --bg: #000;
-      --white: #fff;
-      --letterbox-height: 10vh; /* base for desktop; mobile will use safe-area */
+      --w:100vw; --h:100vh;
     }
-    html,body{height:100%;margin:0;background:var(--bg);color:var(--white);font-family: 'JiangXiZhuoKai', serif;overflow:hidden}/* 背景与中心文字区 */
-.stage{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
-.prose{position:relative;z-index:5;text-align:center;pointer-events:none}
-.line{opacity:0;transform:translateY(8px);font-size:clamp(18px,2.2vw,26px);white-space:pre-wrap}
-.line.show{animation:fadeIn var(--fade) forwards}
-@keyframes fadeIn{to{opacity:1;transform:none}}
-.line.hide{animation:fadeOut .35s forwards}
-@keyframes fadeOut{to{opacity:0;transform:translateY(-8px)}}
 
-/* 最后一句红色、底部继续提示 */
-.final{color:var(--blood);font-weight:700}
-.continue-hint{position:fixed;right:18px;bottom:18px;color:rgba(255,255,255,0.85);font-size:14px;z-index:40;cursor:pointer;display:none}
+    /* 层叠画布容器（l1-l5 共存于同一页面，不随机弹出） */
+    .scene {
+      position:fixed; inset:0;
+      display:block;
+      overflow:hidden;
+      background: linear-gradient(180deg,#a3d5ff,#cceeff); /* 默认 l1 */
+      transition: background 1.2s ease;
+    }
 
-/* 白色面板，从底向上出现（仅在最终阶段绘制） */
-.white-panel{position:fixed;left:0;right:0;bottom:0;height:0;background:var(--white);z-index:10;transition:height var(--final-move-duration) cubic-bezier(.2,.8,.2,1)}
-.white-panel.moving{height:100vh}
+    /* 云的 canvas 全屏 */
+    canvas#clouds {
+      position:absolute; inset:0; width:100%; height:100%; pointer-events:none;
+      filter: blur(0.6px);
+    }
 
-/* 黑色条框（电影视角） */
-.letterbox-top,.letterbox-bottom{position:fixed;left:0;right:0;height:0;background:#000;z-index:30;transition:height .6s}
-.letterbox-top.on{height:calc(var(--letterbox-height) + env(safe-area-inset-top, 0px))}
-.letterbox-bottom.on{height:calc(var(--letterbox-height) + env(safe-area-inset-bottom, 0px))}
+    /* l2 渐变叠层（在主界面可能被打开） */
+    .layer-l2 {
+      position:absolute; inset:0; pointer-events:none;
+      background: linear-gradient(120deg, rgba(255,200,220,0.06), rgba(200,220,255,0.06));
+      mix-blend-mode: screen;
+      transition: opacity 1.2s ease;
+    }
 
-/* 标题与菜单 */
-.menu-wrap{position:fixed;z-index:35;left:50%;transform:translateX(-50%);top:calc(var(--letterbox-height) + env(safe-area-inset-top,0px) + 6vh);width:100%;max-width:900px;text-align:center;opacity:0;transition:opacity .6s}
-.title{font-size:clamp(48px,8vw,120px);color:#111;margin:0}
-.subtitle{font-size:14px;color:#444;margin-top:6px}
-.menu{margin-top:2.6rem;display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
-.menu button{background:transparent;border:2px solid rgba(0,0,0,0.06);padding:12px 20px;border-radius:8px;font-size:16px;cursor:pointer;transition:color .12s,transform .12s}
-.menu button:hover{color:var(--hover-red);transform:translateY(-3px)}
+    /* l3 玫瑰金刻印纹理：用伪元素绘制重复纹理（纯 CSS） */
+    .layer-l3 {
+      position:absolute; inset:0; pointer-events:none;
+      background:
+        linear-gradient(90deg, rgba(242,200,180,0.02), rgba(212,175,160,0.02));
+      mix-blend-mode: overlay;
+    }
+    .layer-l3::after{
+      content:"";
+      position:absolute; inset:0;
+      background-image:
+        radial-gradient(circle at 10% 10%, rgba(255,235,230,0.03) 0 2px, transparent 2px),
+        radial-gradient(circle at 30% 80%, rgba(255,240,238,0.02) 0 2px, transparent 2px);
+      background-size: 40px 40px, 60px 60px;
+      opacity:0.9;
+      pointer-events:none;
+    }
 
-/* 点击时整页淡黑 */
-.fade-overlay{position:fixed;inset:0;background:#000;opacity:0;z-index:60;pointer-events:none;transition:opacity .45s}
-.fade-overlay.on{opacity:1;pointer-events:auto}
+    /* l4 儒雅黑（深色系叠层）*/
+    .layer-l4{ position:absolute; inset:0; background: rgba(16,16,16,0.4); mix-blend-mode:multiply; pointer-events:none; }
 
-/* Win8 风格提示框（伪） */
-.win8-modal{position:fixed;left:50%;top:18%;transform:translateX(-50%);background:#f3f3f3;border:1px solid #ccc;padding:18px;border-radius:6px;z-index:80;min-width:320px;box-shadow:0 8px 30px rgba(0,0,0,.25);display:none}
-.win8-modal.show{display:block}
-.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
-.btn{padding:8px 12px;border-radius:4px;border:none;cursor:pointer}
-.btn.primary{background:#0078d7;color:#fff}
+    /* l5 云白材质（近景高光云） */
+    .layer-l5{ position:absolute; inset:0; pointer-events:none; }
+    .layer-l5::before{
+      content:""; position:absolute; inset:0;
+      background: radial-gradient(ellipse at 70% 40%, rgba(255,255,255,0.06), transparent 10%),
+                  radial-gradient(ellipse at 30% 70%, rgba(255,255,255,0.05), transparent 8%);
+      pointer-events:none;
+    }
 
-/* 成就提示（模仿 Steam） */
-.achieve{position:fixed;right:18px;top:18px;background:rgba(30,30,30,0.95);color:#fff;padding:12px;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.5);transform:translateX(0);transition:transform .4s;z-index:90}
-.achieve.hide{transform:translateX(120%)}
+    /* 中央标题区 */
+    .center {
+      position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;
+      z-index:40;
+      user-select:none;
+    }
+    .title {
+      font-size: clamp(32px,6vw,64px);
+      line-height:1.02;
+      font-weight:800;
+      color:#fff;
+      text-shadow: 0 6px 28px rgba(0,0,0,0.35), 0 0 12px rgba(255,255,255,0.06);
+    }
+    .subtitle {
+      margin-top:12px; font-size:clamp(12px,1.6vw,18px); opacity:0.85;
+      animation: blink 2200ms infinite;
+      cursor:pointer;
+    }
+    @keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
 
-/* 响应式微调 */
-@media (max-width:720px){
-  .line{font-size:18px}
-  :root{--letterbox-height:6vh}
-  .menu{flex-direction:column}
-}
+    .intro { margin-top:18px; font-size: clamp(12px,1.6vw,18px); color:rgba(255,255,255,0.95) }
 
+    /* 底部版权 */
+    .footer {
+      position:absolute; left:0; right:0; bottom:12px; display:flex; justify-content:space-between; align-items:center;
+      padding: 0 18px; font-size:13px; color: rgba(255,255,255,0.8); z-index:45;
+    }
+
+    /* 锁定遮罩（检测到篡改时） */
+    .tamper-lock {
+      position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:999;
+      background: rgba(0,0,0,0.6); color:#fff; font-size:18px; text-align:center; padding:20px; box-sizing:border-box;
+      display:none;
+    }
+
+    /* 人机验证弹窗基础 */
+    .captcha-modal {
+      position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:200; min-width:300px;
+      background: linear-gradient(180deg,#ffffff10,#ffffff06); border-radius:12px; padding:16px;
+      box-shadow:0 10px 40px rgba(0,0,0,0.5); color:#fff; display:none;
+      backdrop-filter: blur(4px);
+    }
+    .captcha-modal button{ margin-top:12px; padding:8px 12px; border-radius:8px; cursor:pointer; }
+
+    /* 响应式处理略写  */
   </style>
 </head>
 <body>
-  <div class="stage">
-    <div class="prose" id="prose"></div>
-  </div>  <div class="white-panel" id="whitePanel"></div>
-  <div class="letterbox-top" id="lt"></div>
-  <div class="letterbox-bottom" id="lb"></div>  <div class="menu-wrap" id="menuWrap">
-    <h1 class="title">门</h1>
-    <div class="subtitle">demo</div>
-    <div class="menu">
-      <button id="newBtn">新的开始</button>
-      <button id="continueBtn">继续？</button>
-      <button id="settingsBtn">设置</button>
-      <button id="achBtn">成就</button>
-      <button id="chapBtn">章节</button>
+  <div class="scene" id="scene">
+    <!-- canvas 用于画飘动云朵（l1 核心）-->
+    <canvas id="clouds"></canvas>
+
+    <!-- 其他叠层，默认隐藏/半透明，进入主界面后根据逻辑开启 -->
+    <div class="layer-l2" id="layer-l2" style="opacity:0;"></div>
+    <div class="layer-l3" id="layer-l3" style="opacity:0;"></div>
+    <div class="layer-l4" id="layer-l4" style="opacity:0;"></div>
+    <div class="layer-l5" id="layer-l5" style="opacity:0;"></div>
+
+    <div class="center" id="center">
+      <div class="title">灵境工作室<br><small style="font-weight:500;font-size:0.6em;opacity:0.9">Mystic Realm Studio</small></div>
+      <div class="subtitle" id="enterBtn">点击进入主界面</div>
+      <div class="intro">梦想成真是什么感觉? 做就知道了。</div>
     </div>
-  </div>  <div class="fade-overlay" id="fadeOverlay"></div>  <div class="continue-hint" id="continueHint">点击继续</div>  <div class="win8-modal" id="win8Modal">
-    <div><strong>检测到你上次已进入本页</strong></div>
-    <div style="margin-top:8px">是否重新播放前言？</div>
-    <div class="modal-actions">
-      <button class="btn" id="modalNo">不需要</button>
-      <button class="btn primary" id="modalYes">再次观看</button>
+
+    <div class="footer">
+      <div>怡境梦呓 ©</div>
+      <div id="time">加载中...</div>
     </div>
-  </div>  <!-- 简单的设置面板（通过 prompt 实现，避免复杂 UI） -->  <script>
-    // 内容与参数
-    const paragraphs = [
-      '你知道吗?',
-      '秉门，是活的',
-      '你经过祂，就会到另一个世界',
-      '相传文村的人找到了祂',
-      '于是一个村的人，都成了仙',
-      '于是，文村成了无人村',
-      '据说人成仙，就会留下自己的贪嗔痴',
-      '于是，文村吸引不少野鬼流入',
-      '前几年，有一伙人去找秉门',
-      '再也没有回来，有人说他们成了仙',
-      '但是有一个大师说/(血红色)"祂们成了鬼"'
-    ];
+  </div>
 
-    const fade = 880; // ms
-    const hold = 3450; // ms
-    const finalMoveDelay = 2340; // ms after final is shown
-    const finalMoveDuration = 1800; // ms for panel/animation
+  <!-- 锁定遮罩（篡改检测） -->
+  <div class="tamper-lock" id="tamperLock">检测到页面可能被修改或注入⚠️，已进入只读安全模式。如为误报，请刷新页面。</div>
 
-    const prose = document.getElementById('prose');
-    const whitePanel = document.getElementById('whitePanel');
-    const lt = document.getElementById('lt');
-    const lb = document.getElementById('lb');
-    const menuWrap = document.getElementById('menuWrap');
-    const fadeOverlay = document.getElementById('fadeOverlay');
-    const continueHint = document.getElementById('continueHint');
-    const win8Modal = document.getElementById('win8Modal');
+  <!-- 人机验证弹窗（本地轻量版：算术题） -->
+  <div class="captcha-modal" id="captchaModal">
+    <div id="captchaContent">为继续，请完成下列验证：</div>
+    <div style="margin-top:8px;">
+      <label id="captchaQ"></label>
+      <input id="captchaInput" type="text" style="margin-left:8px;padding:6px;border-radius:6px;border:1px solid #ccc;">
+    </div>
+    <div style="text-align:right;">
+      <button id="captchaSubmit">提交</button>
+    </div>
+    <div id="captchaMsg" style="margin-top:8px;color:#ffddaa"></div>
+  </div>
 
-    // 设备检测
-    const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+  <!-- 受保护脚本：我们把关键脚本内容放到一个 <script type="application/json" id="protectedScript"> 中（仅用于示例完整性校验） -->
+  <script type="application/json" id="protectedScript">
+  {
+    "note":"protected-block-v1",
+    "purpose":"cloud-render + time + anti-tamper",
+    "version":1,
+    "payload":"use this field to store protected logic string—will be validated by SHA-256 at runtime"
+  }
+  </script>
 
-    // 记住是否已访问
-    const visited = localStorage.getItem('door_visited') || 0;
-    localStorage.setItem('door_visited', Number(visited) + 1);
+  <!-- 主脚本（受保护内容校验 + 人机验证逻辑 + 云渲染） -->
+  <script>
+  (function(){
+    'use strict';
+    /* -------------------------
+       配置区（可以修改）
+       ------------------------- */
+    const PROTECTED_ID = 'protectedScript';
+    // 这里是 expectedHash：在构建时你可以把 protectedScript 内容算 SHA-256 并填入此处。
+    // 下面是示例哈希（构建时请替换）。示例为 base64Url SHA-256。
+    const expectedHash_b64url = 'REPLACE_WITH_REAL_HASH_AT_BUILD_TIME';
 
-    // 如果是第二次进入或更多，展示 Win8 风格询问
-    if(Number(visited) >= 1){
-      setTimeout(()=>{ win8Modal.classList.add('show') }, 500);
-    } else {
-      // 首次直接播放
-      startPrologue();
+    // 服务器端接口（可选）：用于精确的 IP 计数。若没有可留空，客户端退回本地近似检测。
+    const SERVER_CHECK_ENDPOINT = ''; // e.g. 'https://your-worker.example.com/api/check'
+    const SERVER_REPORT_ENDPOINT = ''; // e.g. 'https://your-worker.example.com/api/report'
+
+    /* -------------------------
+       工具：base64url -> ArrayBuffer
+       ------------------------- */
+    function b64UrlToArrayBuffer(b64UrlString){
+      // base64url -> base64
+      let s = b64UrlString.replace(/-/g,'+').replace(/_/g,'/');
+      while(s.length % 4) s += '=';
+      const bin = atob(s);
+      const len = bin.length;
+      const arr = new Uint8Array(len);
+      for(let i=0;i<len;i++) arr[i]=bin.charCodeAt(i);
+      return arr.buffer;
     }
 
-    document.getElementById('modalYes').addEventListener('click', ()=>{
-      win8Modal.classList.remove('show');
-      startPrologue(true);
-    });
-    document.getElementById('modalNo').addEventListener('click', ()=>{
-      win8Modal.classList.remove('show');
-      // 直接跳到后阶段
-      triggerTitleSequence();
-    });
+    async function computeSHA256ofString(str){
+      const enc = new TextEncoder().encode(str);
+      const hash = await crypto.subtle.digest('SHA-256', enc);
+      // convert to base64url
+      const b64 = arrayBufferToB64Url(hash);
+      return b64;
+    }
+    function arrayBufferToB64Url(buf){
+      const bytes = new Uint8Array(buf);
+      let binary = '';
+      for(let i=0;i<bytes.byteLength;i++) binary += String.fromCharCode(bytes[i]);
+      const b64 = btoa(binary);
+      return b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    }
 
-    // 逐句显示逻辑
-    function startPrologue(forceReplay){
-      prose.innerHTML = '';
-      let index = 0;
-      function showNext(){
-        if(index >= paragraphs.length) return onFinalShown();
-        const txt = paragraphs[index];
-        const isFinal = index === paragraphs.length -1;
-        const el = document.createElement('div');
-        el.className = 'line';
-        if(isFinal) el.classList.add('final');
-        // 支持中间内嵌血红色标记 (简单解析)
-        el.innerHTML = txt.replace(/血红色\"(.*?)\"/,'<span style="color:var(--blood)">$1</span>');
-        prose.appendChild(el);
-        // fade in
-        requestAnimationFrame(()=> el.classList.add('show'));
+    /* -------------------------
+       防注入强化：覆盖敏感 setter，用于检测
+       ------------------------- */
+    (function installUnsafeWriteDetector(){
+      try{
+        const descriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+        if(descriptor && descriptor.set){
+          const originalSetter = descriptor.set;
+          Object.defineProperty(Element.prototype, 'innerHTML', {
+            configurable: true,
+            get: descriptor.get,
+            set: function(v){
+              // 记录并调用原始 setter
+              window.__detectedPotentialWrite = window.__detectedPotentialWrite || [];
+              window.__detectedPotentialWrite.push({type:'innerHTML', node:this.tagName, time:Date.now()});
+              originalSetter.call(this, v);
+            }
+          });
+        }
+      }catch(e){}
+      // insertAdjacentHTML 监测
+      try{
+        const orig = Element.prototype.insertAdjacentHTML;
+        Element.prototype.insertAdjacentHTML = function(pos, html){
+          window.__detectedPotentialWrite = window.__detectedPotentialWrite || [];
+          window.__detectedPotentialWrite.push({type:'insertAdjacentHTML', node:this.tagName, pos:pos, time:Date.now()});
+          return orig.call(this,pos,html);
+        };
+      }catch(e){}
+    })();
 
-        // hold then remove/replace
-        const totalHold = hold + fade;
-        setTimeout(()=>{
-          // 如果不是最后一句，淡出并移除
-          if(!isFinal){
-            el.classList.add('hide');
-            setTimeout(()=> el.remove(), 350);
-            index++; showNext();
-          } else {
-            // 最后一段处理（停留，并显示继续）
-            continueHint.style.display = 'block';
-            // 点击继续也可以触发后续
-            continueHint.onclick = triggerTitleSequence;
-            // 不自动触发title，这里等待用户或自动在 finalMoveDelay 后触发动画
-            setTimeout(()=> startFinalSequence(el), finalMoveDelay);
+    /* -------------------------
+       受保护脚本完整性校验
+       ------------------------- */
+    async function verifyProtectedBlock(){
+      const el = document.getElementById(PROTECTED_ID);
+      if(!el) return false;
+      const txt = el.textContent || el.innerText || '';
+      const h = await computeSHA256ofString(txt.trim());
+      if(expectedHash_b64url === 'REPLACE_WITH_REAL_HASH_AT_BUILD_TIME'){
+        // 开发提示：未替换哈希，跳过强校验，但仍做 DOM mutation 监控
+        console.warn('[Integrity] expectedHash 未设置（请在构建时替换）');
+        return true;
+      }
+      return h === expectedHash_b64url;
+    }
+
+    /* -------------------------
+       DOM 关键区域监控（MutationObserver）
+       ------------------------- */
+    function installDomWatcher(){
+      const lock = document.getElementById('tamperLock');
+      const targets = [document.getElementById('center'), document.getElementById('clouds'), document.getElementById('time')];
+      const config = { attributes:true, childList:true, subtree:true, characterData:true };
+      const obs = new MutationObserver((mutations)=>{
+        // 轻量统计：若发现对关键节点的新增 script/style 或大段文本被替换 就报警
+        for(const m of mutations){
+          if(m.type==='childList'){
+            for(const n of m.addedNodes){
+              if(n.nodeType===1 && (n.tagName==='SCRIPT' || n.tagName==='IFRAME' || n.tagName==='OBJECT')){
+                // 关键注入：锁定
+                lock.style.display='flex';
+                console.error('[Tamper] 注入可疑节点', n);
+                return;
+              }
+            }
           }
-        }, totalHold);
-      }
-      showNext();
-
-      // 成就：达到场景1 -> 初来驾到
-      setTimeout(()=> showAchievement('初来驾到','恭喜来到这里'), 500);
-    }
-
-    function startFinalSequence(finalEl){
-      // 1) 最终文字慢慢向上移动
-      finalEl.style.transition = `transform ${finalMoveDuration}ms cubic-bezier(.2,.8,.2,1)`;
-      finalEl.style.transform = 'translateY(-40vh)';
-
-      // 2) 白色面板自底向上出现
-      whitePanel.classList.add('moving');
-
-      // 3) 在白板填满后，显示电影视角和菜单（延迟与动画协调）
-      setTimeout(()=>{
-        lt.classList.add('on'); lb.classList.add('on');
-        // 使菜单显现
-        menuWrap.style.opacity = 1;
-        // 把白板渐变成浑浊（用 CSS 背景渐变替代）
-        whitePanel.style.background = 'linear-gradient(90deg, rgba(0,0,0,0.06), rgba(255,255,255,1))';
-        // 同时隐藏中心文字区
-        prose.style.opacity = 0;
-        // 标题和菜单已准备好
-      }, finalMoveDuration + 300);
-    }
-
-    function triggerTitleSequence(){
-      // 如果已触发过则直接展示
-      if(menuWrap.style.opacity === '1'){ return }
-      // 直接运行 final sequence (支持用户点击继续)
-      // 默认快速过渡：让白板到满，打开 letterbox
-      whitePanel.classList.add('moving');
-      setTimeout(()=>{ lt.classList.add('on'); lb.classList.add('on'); menuWrap.style.opacity = 1; prose.style.opacity = 0; }, 700);
-    }
-
-    // 菜单按钮交互
-    document.getElementById('newBtn').addEventListener('click', ()=>{
-      // 新的开始：清除保存、直接刷新场景（但需要保留设备检测要求）
-      localStorage.removeItem('door_savecode');
-      fadeOverlay.classList.add('on');
-      setTimeout(()=> location.reload(), 600);
-    });
-    document.getElementById('continueBtn').addEventListener('click', ()=>{
-      const code = prompt('请输入存档码（或留空查看本地自动存档）:');
-      if(code){
-        // 简单验证（示例）：尝试读取
-        const s = localStorage.getItem('door_save_'+code);
-        alert(s? '找到存档：' + s : '未找到存档码');
-      } else {
-        alert('本地自动存档: ' + (localStorage.getItem('door_autosave') || '无'));
-      }
-    });
-    document.getElementById('settingsBtn').addEventListener('click', ()=>{
-      const gamma = prompt('亮度 (γ) 值, 例如 1.0 (默认):', '1.0');
-      if(gamma !== null){
-        document.documentElement.style.filter = `brightness(${gamma})`;
-      }
-      const fs = confirm('是否切换到全屏？(请在支持的浏览器中确认)');
-      if(fs){
-        if(document.fullscreenEnabled) document.documentElement.requestFullscreen().catch(()=>{});
-      }
-      const dev = prompt('选择设备（auto / desktop / mobile）:', isMobile ? 'mobile' : 'desktop');
-      // 仅供展示：保存选择
-      localStorage.setItem('door_device_pref', dev);
-      alert('已保存设备选择: ' + dev);
-    });
-
-    document.getElementById('achBtn').addEventListener('click', ()=>{
-      showAchievement('测试成就','这是一个演示成就');
-    });
-    document.getElementById('chapBtn').addEventListener('click', ()=>{
-      alert('章节功能尚在开发中');
-    });
-
-    // 简单成就系统
-    function showAchievement(title,desc){
-      const el = document.createElement('div');
-      el.className = 'achieve';
-      el.innerHTML = `<strong>${title}</strong><div style="font-size:12px;margin-top:6px;color:#ddd">${desc}</div>`;
-      document.body.appendChild(el);
-      // 在滞留 2.43s 后划出屏幕（向右）
-      setTimeout(()=> el.classList.add('hide'), 2430);
-      // 完全移除
-      setTimeout(()=> el.remove(), 3000);
-    }
-
-    // 窗口聚焦/刷新时不要重置到场景1（用 localStorage 标记当前阶段）
-    // 这里我们把阶段存在 localStorage，但不强制页面跳转：
-    window.addEventListener('beforeunload', ()=>{
-      localStorage.setItem('door_last_stage','menu');
-    });
-
-    // 鼠标悬停反馈（手机版触摸有 :active）已用 CSS hover 处理
-
-    // 当用户点击任一菜单项，我们要实现悬浮变红 0.12s、点击后页面黑掉 0.45s
-    document.querySelectorAll('.menu button').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        // 视觉反馈在 CSS 中, 这里是点击后淡黑逻辑
-        fadeOverlay.classList.add('on');
-        setTimeout(()=>{
-          // 可以在此触发相应页面或继续流程
-          if(btn.id === 'newBtn') location.reload();
-          else fadeOverlay.classList.remove('on');
-        }, 600);
+          if(m.type==='characterData' || m.type==='attributes'){
+            // 记录并继续检查
+            // 若多次触发则锁定（简单阈值）
+            window.__tamperMutations = (window.__tamperMutations||0) + 1;
+            if(window.__tamperMutations>6){
+              lock.style.display='flex';
+              console.error('[Tamper] 多次 DOM 变更，触发只读模式');
+              return;
+            }
+          }
+        }
       });
-    });
+      for(const t of targets) if(t) obs.observe(t, config);
+    }
 
-    // 当首次访问但用户希望跳过前言，允许直接进入菜单
-    // 逻辑已在 modal No 的处理里
+    /* -------------------------
+       云渲染：Canvas 绘制多层云（pure JS）
+       ------------------------- */
+    function startClouds(){
+      const canvas = document.getElementById('clouds');
+      const ctx = canvas.getContext('2d');
+      const DPR = Math.max(1, window.devicePixelRatio || 1);
+      function resize(){
+        canvas.width = window.innerWidth * DPR;
+        canvas.height = window.innerHeight * DPR;
+        canvas.style.width = window.innerWidth + 'px';
+        canvas.style.height = window.innerHeight + 'px';
+        ctx.setTransform(DPR,0,0,DPR,0,0);
+      }
+      window.addEventListener('resize', resize, {passive:true});
+      resize();
 
-    // 小提示：把自动保存放入 localStorage（示例）
-    localStorage.setItem('door_autosave','场景1-到达');
+      // 生成云（对象池）
+      const clouds = [];
+      function mkCloud(i){
+        return {
+          x: -200 - Math.random()*400,
+          y: Math.random() * window.innerHeight * 0.8,
+          w: 120 + Math.random()*240,
+          h: 60 + Math.random()*100,
+          speed: 10 + Math.random()*35,
+          alpha: 0.5 + Math.random()*0.5,
+          swell: 0.5 + Math.random()*1.5
+        };
+      }
+      for(let i=0;i<6;i++) clouds.push(mkCloud(i));
 
-    // Accessibility: 允许点击页面任意处触发继续（便于手机）
-    document.body.addEventListener('click', (e)=>{
-      // 如果 menu 已显示，点击不影响
-      if(menuWrap.style.opacity === '1') return;
-      // 如果 prose 区还有文本并且最后已出现，触发 title
-      if(continueHint.style.display === 'block') triggerTitleSequence();
-    }, {passive:true});
+      let last = performance.now();
+      function frame(now){
+        const dt = Math.min(60,(now-last)/1000); last = now;
+        ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  </script></body>
+        // 背景渐变（subtle）——保持 l1 基色
+        const g = ctx.createLinearGradient(0,0,0,canvas.height/DPR);
+        g.addColorStop(0,'#a3d5ff'); g.addColorStop(1,'#cceeff');
+        ctx.fillStyle = g;
+        ctx.fillRect(0,0,canvas.width/DPR,canvas.height/DPR);
+
+        // 绘制每朵云（简单模糊效果由 CSS filter 提供）
+        for(const c of clouds){
+          c.x += c.speed * dt;
+          if(c.x - c.w > window.innerWidth + 100) {
+            // recycle
+            Object.assign(c, mkCloud());
+            c.x = -c.w - Math.random()*200;
+          }
+
+          // 绘制云块
+          ctx.save();
+          ctx.globalAlpha = c.alpha * 0.9;
+          const cx = c.x, cy = c.y, w = c.w, h = c.h;
+          // 叠加几个椭圆
+          ctx.beginPath();
+          ctx.ellipse(cx + w*0.2, cy, w*0.6, h*0.6, 0, 0, Math.PI*2);
+          ctx.ellipse(cx + w*0.5, cy - h*0.15, w*0.7, h*0.65, 0, 0, Math.PI*2);
+          ctx.ellipse(cx + w*0.8, cy, w*0.5, h*0.55, 0, 0, Math.PI*2);
+          ctx.closePath();
+          // 渐变填充
+          const gg = ctx.createLinearGradient(cx, cy-h, cx, cy+h);
+          gg.addColorStop(0, 'rgba(255,255,255,0.95)');
+          gg.addColorStop(1, 'rgba(240,245,255,0.85)');
+          ctx.fillStyle = gg;
+          ctx.fill();
+          ctx.restore();
+        }
+
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    }
+
+    /* -------------------------
+       时间更新（底部秒级时间）
+       ------------------------- */
+    function startClock(){
+      const tEl = document.getElementById('time');
+      function tick(){
+        const now = new Date();
+        const s = now.getFullYear() + '-' +
+                  String(now.getMonth()+1).padStart(2,'0') + '-' +
+                  String(now.getDate()).padStart(2,'0') + ' ' +
+                  String(now.getHours()).padStart(2,'0') + ':' +
+                  String(now.getMinutes()).padStart(2,'0') + ':' +
+                  String(now.getSeconds()).padStart(2,'0');
+        tEl.textContent = s;
+      }
+      tick();
+      setInterval(tick,1000);
+    }
+
+    /* -------------------------
+       本地(近似) 速率/重放 检测（2s 窗口内 10 次）——用于无服务器场景
+       使用 localStorage + BroadcastChannel 进行跨标签同步
+       ------------------------- */
+    const LOCAL_KEY = '__mrs_access_times';
+    function localRegisterAccessAndCheck(){
+      try{
+        const now = Date.now();
+        let arr = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]');
+        // 移除超过 2s 的旧数据
+        arr = arr.filter(ts => now - ts <= 2000);
+        arr.push(now);
+        localStorage.setItem(LOCAL_KEY, JSON.stringify(arr));
+        // 通知其他标签
+        try{
+          const bc = new BroadcastChannel('mrs_channel'); bc.postMessage({t:now}); bc.close();
+        }catch(e){}
+        return arr.length >= 10;
+      }catch(e){
+        return false;
+      }
+    }
+    // 监听其他 tab 的通知以保持计数同步（降低误判）
+    try{
+      const bc = new BroadcastChannel('mrs_channel');
+      bc.onmessage = (ev)=>{ /* 非必须：可以触发页面视觉反馈 */ };
+    }catch(e){}
+
+    /* -------------------------
+       若有 SERVER_CHECK_ENDPOINT 则优先调用服务器端检测（更可靠）
+       返回 { requireCaptcha: boolean }
+       ------------------------- */
+    async function serverCheck(){
+      if(!SERVER_CHECK_ENDPOINT) return null;
+      try{
+        const r = await fetch(SERVER_CHECK_ENDPOINT, {method:'POST', credentials:'include'}); // include cookie 若需要
+        if(!r.ok) return null;
+        return await r.json();
+      }catch(e){
+        return null;
+      }
+    }
+
+    /* -------------------------
+       弹出本地轻量验证码 （算术）
+       ------------------------- */
+    function showLocalCaptcha(onSuccess){
+      const modal = document.getElementById('captchaModal');
+      const qEl = document.getElementById('captchaQ');
+      const input = document.getElementById('captchaInput');
+      const submit = document.getElementById('captchaSubmit');
+      const msg = document.getElementById('captchaMsg');
+
+      // 随机简单算术题
+      const a = Math.floor(Math.random()*9)+1;
+      const b = Math.floor(Math.random()*9)+1;
+      const op = ['+','-'][Math.random()>0.5?0:1];
+      const ans = op==='+'? a+b : a-b;
+      qEl.textContent = `${a} ${op} ${b} = ?`;
+
+      modal.style.display='block';
+      input.value=''; msg.textContent='';
+
+      function cleanup(){ modal.style.display='none'; submit.removeEventListener('click',onClick); }
+
+      function onClick(){
+        if(Number(input.value.trim())===ans){
+          cleanup(); onSuccess && onSuccess(true);
+        }else{
+          msg.textContent = '答案错误，请重试';
+        }
+      }
+      submit.addEventListener('click', onClick);
+    }
+
+    /* -------------------------
+       初始化流程
+       ------------------------- */
+    async function init(){
+      // 1) 校验受保护块完整性（若失败：进入锁定）
+      const ok = await verifyProtectedBlock();
+      if(!ok){
+        document.getElementById('tamperLock').style.display='flex';
+        return; // 不继续初始化
+      }
+
+      // 2) 启动观察器/云/时钟
+      installDomWatcher();
+      startClouds();
+      startClock();
+
+      // 3) 绑定进入主界面按钮：点击后（示例）逐步把 l2-l5 可视化（用户指定逻辑）
+      document.getElementById('enterBtn').addEventListener('click', async ()=>{
+        // 在进入主界面之前先做速率检测（优先服务器）
+        let serverResp = null;
+        if(SERVER_CHECK_ENDPOINT){
+          serverResp = await serverCheck();
+        }
+        let requireCaptcha = false;
+        if(serverResp && typeof serverResp.requireCaptcha !== 'undefined'){
+          requireCaptcha = serverResp.requireCaptcha;
+        }else{
+          // 本地近似检测
+          requireCaptcha = localRegisterAccessAndCheck();
+        }
+
+        if(requireCaptcha){
+          // 触发本地人机验证（或如果你接了 reCAPTCHA，这里改为调出它）
+          showLocalCaptcha(async (ok)=>{
+            if(ok){
+              // 报告一次成功解锁（可选）
+              if(SERVER_REPORT_ENDPOINT){
+                try{ await fetch(SERVER_REPORT_ENDPOINT, {method:'POST', body:JSON.stringify({event:'captcha_pass'}), headers:{'content-type':'application/json'}}); }catch(e){}
+              }
+              openMainInterface();
+            }else{
+              // remain locked
+            }
+          });
+        }else{
+          openMainInterface();
+        }
+      });
+    }
+
+    function openMainInterface(){
+      // 进入主界面示例：渐入 l2~l5（你可以替换为菜单/动画）
+      document.getElementById('layer-l2').style.opacity = 0.7;
+      document.getElementById('layer-l3').style.opacity = 0.8;
+      document.getElementById('layer-l4').style.opacity = 0.18;
+      document.getElementById('layer-l5').style.opacity = 1.0;
+      // 同时可以将提示改成返回或导航
+      document.getElementById('enterBtn').textContent = '已进入主界面';
+    }
+
+    // 启动
+    init().catch(e=>{ console.error('初始化失败',e); });
+
+  })();
+  </script>
+</body>
 </html>
