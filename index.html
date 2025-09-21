@@ -1,626 +1,174 @@
-<!doctype html>
-<!--
-  Mystic Realm Studio — Landing (Single file)
-  - 纯渲染：无图片（Canvas + CSS）
-  - 视觉：冰块蓝主色、云层、玫瑰金刻纹、儒雅黑叠层、云白高光
-  - 防篡改：受保护脚本完整性校验 + MutationObserver + 内置 write-detection
-  - 人机验证：客户端近似（2s 窗口内≥10次触发），可选 SERVER_CHECK_ENDPOINT 以用服务器精确按 IP 计数
-  - 使用说明：
-    1) 若无服务器端，页面会使用 localStorage + BroadcastChannel 做近似检测（同一浏览器/设备）
-    2) 若要精确按 IP 检测，部署 Serverless（Cloudflare Worker / Vercel Function）并把 URL 填入 SERVER_CHECK_ENDPOINT
-    3) 若要启用更严格 CSP 请在服务器端设置 HTTP header（meta CSP 在静态场景有局限）
-  - 你可按需在 protectedScript 内容变更后计算 SHA-256(base64url) 并替换 expectedHash_b64url 以启用强完整性校验
--->
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>灵境工作室 Mystic Realm Studio</title>
-  <!-- 基础 CSP（注意：meta CSP 在某些场景被忽略，生产请用 server header） -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'none'; connect-src 'self' https:;">
+<meta charset="UTF-8">
+<title>灵境工作室 Mystic Realm Studio</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
+    background: #1a1a1a; /* 乳雅黑 */
+    color: #fff;
+    overflow-x: hidden;
+  }
 
-  <style>
-    /* -------------------------
-       DESIGN TOKENS
-    ------------------------- */
-    :root{
-      --bg-ice-1: #bfe8ff;
-      --bg-ice-2: #dff6ff;
-      --accent-rose: #b76e79; /* 玫瑰金基准（可用渐变）*/
-      --gold-rose: linear-gradient(135deg, rgba(183,110,121,0.95), rgba(220,175,150,0.88));
-      --ink: #0f1113; /* 儒雅黑 */
-      --cloud-white: rgba(255,255,255,0.95);
-      --glass: rgba(255,255,255,0.06);
-      --glass-strong: rgba(255,255,255,0.12);
-      --muted: rgba(255,255,255,0.85);
-      --radius-xl: 18px;
-      --radius-lg: 12px;
-      --ease-smooth: cubic-bezier(.2,.9,.2,1);
-      --max-width: 1100px;
-      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "PingFang SC";
-      --sans: "Inter", "Noto Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif;
-    }
+  /* 云朵和渐变背景 */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: linear-gradient(135deg, #1a1a1a, #222);
+    animation: gradientShift 60s ease infinite;
+    z-index: -2;
+  }
 
-    /* -------------------------
-       RESET
-    ------------------------- */
-    *{box-sizing:border-box}
-    html,body{height:100%;margin:0;background:#000;font-family:var(--sans);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale; color:var(--muted)}
-    button{font:inherit}
+  .cloud {
+    position: fixed;
+    background: rgba(255,255,255,0.05);
+    border-radius: 50%;
+    animation: cloudMove linear infinite;
+    z-index: -1;
+  }
 
-    /* -------------------------
-       LAYOUT
-    ------------------------- */
-    .page {
-      position:fixed; inset:0; overflow:hidden; display:flex; align-items:center; justify-content:center;
-      background: radial-gradient(1200px 600px at 10% 20%, rgba(255,255,255,0.06), transparent 8%),
-                  linear-gradient(180deg, var(--bg-ice-1), var(--bg-ice-2));
-      transition: background 900ms var(--ease-smooth);
-    }
+  @keyframes cloudMove {
+    0% { transform: translateX(-200px) translateY(0); }
+    100% { transform: translateX(100vw) translateY(0); }
+  }
 
-    /* cloud canvas sits at bottom layer */
-    canvas#clouds { position:absolute; inset:0; width:100%; height:100%; display:block; z-index:0; filter: blur(0.6px) saturate(1.04); }
+  @keyframes gradientShift {
+    0% { background: linear-gradient(135deg, #1a1a1a, #222); }
+    50% { background: linear-gradient(135deg, #222, #2a2a2a); }
+    100% { background: linear-gradient(135deg, #1a1a1a, #222); }
+  }
 
-    /* Decorative layers l2-l5 overlayed but not occupying separate pages */
-    .overlay { position:absolute; inset:0; pointer-events:none; z-index:10; mix-blend-mode:normal; transition:opacity 700ms var(--ease-smooth); }
-    .l2 { opacity:0; background: linear-gradient(120deg, rgba(200,220,255,0.03), rgba(255,220,240,0.02)); } /* 渐变变换背景 */
-    .l3 { opacity:0; background-image:
-        radial-gradient(circle at 10% 10%, rgba(255,240,240,0.02) 0 2px, transparent 2px),
-        radial-gradient(circle at 30% 80%, rgba(250,245,242,0.015) 0 2px, transparent 2px);
-        mix-blend-mode:overlay;
-    } /* 玫瑰金刻印花纹（subtle） */
-    .l4 { opacity:0; background: linear-gradient(180deg, rgba(15,15,15,0.22), rgba(10,10,10,0.12)); mix-blend-mode:multiply; } /* 儒雅黑 */
-    .l5 { opacity:0; } /* 云白近景高光由伪元素实现 */
-    .l5::before { content:""; position:absolute; inset:0; background:
-        radial-gradient(ellipse at 70% 40%, rgba(255,255,255,0.06), transparent 9%),
-        radial-gradient(ellipse at 30% 70%, rgba(255,255,255,0.04), transparent 8%);
-        pointer-events:none; }
+  nav {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 60px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(26,26,26,0.8);
+    backdrop-filter: blur(10px);
+    font-size: 1rem; z-index: 1000;
+  }
 
-    /* MAIN CARD (brand-like hero) */
-    .hero {
-      position:relative; z-index:20; width:min(94vw, var(--max-width)); display:grid; grid-template-columns: 1fr; gap:28px;
-      align-items:center; justify-items:center; padding:36px; border-radius:var(--radius-xl);
-      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
-      box-shadow: 0 20px 60px rgba(8,12,20,0.5), inset 0 1px 0 rgba(255,255,255,0.02);
-      backdrop-filter: blur(8px) saturate(1.06);
-      transition: transform 600ms var(--ease-smooth), box-shadow 600ms var(--ease-smooth);
-    }
+  nav a { margin: 0 20px; text-decoration: none; color: #fff; transition: opacity 0.3s;}
+  nav a:hover { opacity: 0.6; }
 
-    .hero:focus-within, .hero:hover { transform: translateY(-6px); box-shadow:0 34px 90px rgba(8,12,20,0.6) }
+  .hero {
+    height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; padding: 0 20px;
+    animation: fadeIn 2s ease forwards;
+  }
 
-    /* Header area: logo + nav (desktop style but simple) */
-    .top {
-      width:100%; display:flex; align-items:center; justify-content:space-between; gap:16px;
-    }
-    .brand {
-      display:flex; align-items:center; gap:12px;
-    }
-    .logo {
-      width:56px; height:56px; border-radius:12px; display:grid; place-items:center;
-      background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
-      box-shadow: 0 6px 18px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.02);
-      border:1px solid rgba(255,255,255,0.04);
-    }
-    .brand h1{ margin:0; font-size:18px; line-height:1; font-weight:700; color:#fff; letter-spacing:0.2px}
-    .brand p{ margin:0; font-size:12px; color:rgba(255,255,255,0.85); opacity:0.9 }
+  .hero h1 { font-size: 3.5em; font-weight: 600; margin-bottom: 15px; }
+  .hero h2 { font-size: 1.5em; font-weight: 300; color: #aaa; margin-bottom: 40px; }
 
-    /* HERO CENTER */
-    .hero-main { text-align:center; padding:8px 6px; }
-    .main-title { font-size: clamp(28px,6vw,56px); margin:0; color:#fff; font-weight:800; line-height:1; letter-spacing:-0.02em; text-shadow: 0 10px 30px rgba(0,0,0,0.45) }
-    .main-sub { margin-top:10px; color:rgba(255,255,255,0.88); font-size: clamp(14px,2vw,18px); opacity:0.95 }
+  .hero .small-text {
+    font-size: 1em; color: #ccc;
+    animation: blink 2s infinite;
+    margin-bottom: 20px;
+  }
 
-    .enter-cta {
-      margin-top:20px; display:inline-flex; align-items:center; gap:12px;
-      background: linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.04));
-      padding:12px 18px; border-radius:12px; cursor:pointer; border:1px solid rgba(255,255,255,0.06);
-      transition: transform 220ms var(--ease-smooth), box-shadow 220ms var(--ease-smooth);
-      backdrop-filter: blur(4px);
-      color:#fff; font-weight:600;
-    }
-    .enter-cta:hover{ transform: translateY(-4px); box-shadow: 0 10px 30px rgba(0,0,0,0.35) }
-    .enter-cta:active{ transform: translateY(-1px) }
+  @keyframes blink {
+    0%, 50%, 100% { opacity: 0.3; }
+    25%, 75% { opacity: 1; }
+  }
 
-    /* subtle sparkle / animated micro icon */
-    .cta-icon { width:18px; height:18px; display:inline-block; transform-origin:center; animation: floaty 3200ms infinite; }
-    @keyframes floaty { 0%{transform:translateY(0)}50%{transform:translateY(-4px)}100%{transform:translateY(0)} }
+  .hero .cta {
+    font-size: 1.2em;
+    padding: 12px 28px;
+    border: 1px solid #fff;
+    border-radius: 30px;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .hero .cta:hover { background: #fff; color: #1a1a1a; }
 
-    /* intro text */
-    .intro { margin-top:6px; color:rgba(255,255,255,0.86); font-size:14px }
+  .section {
+    padding: 100px 20px; text-align: center;
+    max-width: 900px; margin: 0 auto;
+  }
+  .section h3 { font-size: 2em; margin-bottom: 20px; }
+  .section p { font-size: 1.2em; line-height: 1.8em; color: #ccc; }
 
-    /* FOOTER small */
-    .foot {
-      width:100%; display:flex; justify-content:space-between; gap:12px; font-size:13px; color:rgba(255,255,255,0.76);
-      align-items:center;
-    }
+  footer {
+    background: #1a1a1a;
+    text-align: center; padding: 40px 20px;
+    font-size: 0.9em; color: #777;
+  }
 
-    /* accessibility focus outlines */
-    a:focus, button:focus, .enter-cta:focus { outline: 3px solid rgba(255,255,255,0.08); outline-offset:4px; border-radius:10px; }
-
-    /* tamper lock overlay */
-    .tamper {
-      position:fixed; inset:0; display:none; z-index:80; background: linear-gradient(180deg, rgba(10,10,10,0.85), rgba(2,2,2,0.9));
-      color: #fff; align-items:center; justify-content:center; padding:24px; text-align:center;
-    }
-    .tamper .box { max-width:720px; padding:26px; border-radius:14px; background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.04) }
-
-    /* captcha modal */
-    .modal {
-      position:fixed; inset:0; display:none; z-index:90; align-items:center; justify-content:center; padding:20px;
-      background: linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0.65));
-    }
-    .modal .card {
-      min-width:320px; max-width:520px; padding:18px; border-radius:12px; background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
-      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-      color: #fff;
-    }
-
-    /* responsive */
-    @media (min-width:900px){
-      .hero { grid-template-columns: 1fr 420px; gap:32px; align-items:center; }
-      .hero-main { text-align:left }
-    }
-    @media (max-width:520px){
-      .hero { padding:20px }
-      .logo { width:48px; height:48px }
-    }
-  </style>
+  @keyframes fadeIn { from {opacity:0} to {opacity:1} }
+</style>
 </head>
-
 <body>
-  <div class="page" id="page">
-    <!-- Canvas for clouds (l1) -->
-    <canvas id="clouds"></canvas>
 
-    <!-- Overlay layers (l2~l5) : default hidden (opacity:0) - openMainInterface() 时渐显 -->
-    <div class="overlay l2" id="layer-l2" aria-hidden="true"></div>
-    <div class="overlay l3" id="layer-l3" aria-hidden="true"></div>
-    <div class="overlay l4" id="layer-l4" aria-hidden="true"></div>
-    <div class="overlay l5" id="layer-l5" aria-hidden="true"></div>
-
-    <!-- HERO CARD -->
-    <section class="hero" role="region" aria-label="灵境工作室 欢迎">
-      <div class="top" style="grid-column:1/-1">
-        <div class="brand" aria-hidden="false">
-          <div class="logo" aria-hidden="true">
-            <!-- small SVG emblem (pure vector) -->
-            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <defs>
-                <linearGradient id="g1" x1="0" x2="1" y1="0" y2="1">
-                  <stop offset="0" stop-color="#fff" stop-opacity="0.95"/>
-                  <stop offset="1" stop-color="#ffd8c2" stop-opacity="0.85"/>
-                </linearGradient>
-              </defs>
-              <rect x="2" y="2" width="20" height="20" rx="5" fill="url(#g1)"/>
-              <path d="M7 14c1.5-3 4-5 7-6" stroke="#6b3b3e" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </div>
-          <div>
-            <h1>灵境工作室</h1>
-            <p>Mystic Realm Studio</p>
-          </div>
-        </div>
-
-        <nav aria-label="site">
-          <!-- minimal right-side text / future links -->
-          <div style="display:flex; gap:12px; align-items:center;">
-            <div style="font-size:13px;color:rgba(255,255,255,0.78)">探索 · 创作</div>
-          </div>
-        </nav>
-      </div>
-
-      <!-- 主内容 -->
-      <div class="hero-main">
-        <div class="main-title">灵境工作室</div>
-        <div class="main-sub">把有形与想象连接 — 我们用技术与艺术讲述故事。</div>
-
-        <div style="display:flex; gap:12px; align-items:center; justify-content:center; margin-top:20px;">
-          <button class="enter-cta" id="enterBtn" aria-label="点击进入主界面">
-            <span class="cta-icon" aria-hidden="true">
-              <!-- sparkle icon -->
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M12 2l1.8 3.8L17 7l-3 1.2L12 12l-1.9-3.8L7 7l3.2-1.2L12 2z" fill="#fff" opacity="0.95"/></svg>
-            </span>
-            <span>进入主界面</span>
-          </button>
-        </div>
-
-        <div class="intro" style="margin-top:18px">梦想成真是什么感觉? 做就知道了。</div>
-      </div>
-
-      <!-- right column: small decorative card with copyright + real-time time -->
-      <aside style="padding:16px; border-radius:12px; background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); min-width:220px; display:flex; flex-direction:column; gap:12px; align-items:flex-start;">
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <div style="font-size:13px;color:rgba(255,255,255,0.86)">版权来自</div>
-          <div style="font-weight:700;color:#fff;font-size:15px">怡境梦呓 ©</div>
-        </div>
-        <div style="width:100%;border-top:1px dashed rgba(255,255,255,0.03);padding-top:10px;">
-          <div style="font-size:12px;color:rgba(255,255,255,0.75)">今天时间</div>
-          <div id="time" style="font-family:var(--mono);font-size:13px;margin-top:6px;color:#fff">加载中...</div>
-        </div>
-      </aside>
-
-      <div style="grid-column:1/-1; margin-top:2px;">
-        <div class="foot">
-          <div style="opacity:0.9">设计 · Mystic Realm</div>
-          <div style="opacity:0.9">版本 1.0</div>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <!-- Tamper lock (if injection detected) -->
-  <div class="tamper" id="tamper" role="alertdialog" aria-hidden="true">
-    <div class="box">
-      <h2 style="margin:0 0 8px 0">安全提示 — 页面已锁定</h2>
-      <p style="margin:0 0 12px 0; color:rgba(255,255,255,0.9)">检测到页面可能被外部脚本修改或注入。为保障安全，页面已进入只读模式。若为误报，请刷新页面或使用其他设备访问。</p>
-      <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
-        <button id="tamperRefresh" style="padding:8px 12px;border-radius:8px;border:none;cursor:pointer;background:var(--glass-strong);color:#fff">刷新页面</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Captcha modal (lightweight local fallback) -->
-  <div class="modal" id="modal" aria-hidden="true">
-    <div class="card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <h3 id="modalTitle" style="margin:0 0 8px 0">请验证 — 人机校验</h3>
-      <p style="margin:0 0 12px 0; color:rgba(255,255,255,0.9)">检测到短时间内请求量异常。为继续访问，请完成下面的验证。</p>
-
-      <div id="captchaArea" style="display:flex;gap:12px;align-items:center">
-        <div id="captchaQ" style="font-family:var(--mono);font-size:16px;color:#fff">8 + 3 = ?</div>
-        <input id="captchaInput" type="text" inputmode="numeric" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:transparent;color:#fff;width:110px">
-      </div>
-
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
-        <button id="captchaSubmit" style="padding:8px 12px;border-radius:8px;border:none;cursor:pointer;background:var(--gold-rose);color:#fff">提交</button>
-        <button id="captchaCancel" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);cursor:pointer;background:transparent;color:#fff">取消</button>
-      </div>
-
-      <div id="captchaMsg" style="margin-top:10px;color:#ffd8c2;font-size:13px"></div>
-    </div>
-  </div>
-
-  <!-- Protected script block (used for integrity check) -->
-  <script type="application/json" id="protectedScript">
-  {
-    "note":"protected-block-v1",
-    "purpose":"cloud-render + time + anti-tamper + ui-behavior",
-    "version":1,
-    "payload":"小段受保护逻辑或标识（build 时可替换为真正逻辑文件 hash）"
+<!-- 云朵元素 -->
+<script>
+  for(let i=0;i<10;i++){
+    let cloud = document.createElement("div");
+    cloud.className = "cloud";
+    cloud.style.width = (50+Math.random()*100) + "px";
+    cloud.style.height = (20+Math.random()*50) + "px";
+    cloud.style.top = Math.random()*window.innerHeight + "px";
+    cloud.style.animationDuration = (60+Math.random()*60) + "s";
+    document.body.appendChild(cloud);
   }
-  </script>
+</script>
 
-  <script>
-  /* ===========================
-       CONFIG (可按需修改)
-     =========================== */
-  const expectedHash_b64url = 'REPLACE_WITH_REAL_HASH_AT_BUILD_TIME'; // build 时替换可启用强校验
-  const SERVER_CHECK_ENDPOINT = ''; // e.g. https://your-worker.example.com/api/check (POST), 返回 JSON { requireCaptcha: bool, count: n }
-  const SERVER_REPORT_ENDPOINT = ''; // optional: report captcha pass
+<nav>
+  <a href="#">首页</a><a href="#">项目</a><a href="#">团队</a><a href="#">联系</a>
+</nav>
 
-  /* ===========================
-       小工具：SHA-256 -> base64url
-     =========================== */
-  async function sha256Base64Url(str){
-    const enc = new TextEncoder().encode(str);
-    const hash = await crypto.subtle.digest('SHA-256', enc);
-    // to b64url
-    const bytes = new Uint8Array(hash);
-    let binary = '';
-    for(let i=0;i<bytes.length;i++) binary += String.fromCharCode(bytes[i]);
-    let b64 = btoa(binary);
-    b64 = b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-    return b64;
+<section class="hero">
+  <h1>灵境工作室</h1>
+  <h2>Mystic Realm Studio</h2>
+  <div class="small-text">点击进入主界面</div>
+  <button class="cta">进入</button>
+</section>
+
+<section class="section">
+  <h3>梦想成真是什么感觉？</h3>
+  <p>做就知道了。<br>灵境工作室专注于探索虚拟与现实交织的边界，<br>在这里，创意与代码共鸣。</p>
+</section>
+
+<footer>
+  <div>怡境梦呓 © <span id="time"></span></div>
+</footer>
+
+<script>
+  // 实时时间
+  function updateTime() {
+    const now = new Date();
+    const timeStr = now.getFullYear() + "-" +
+      String(now.getMonth()+1).padStart(2,'0') + "-" +
+      String(now.getDate()).padStart(2,'0') + " " +
+      String(now.getHours()).padStart(2,'0') + ":" +
+      String(now.getMinutes()).padStart(2,'0') + ":" +
+      String(now.getSeconds()).padStart(2,'0');
+    document.getElementById("time").innerText = timeStr;
   }
+  setInterval(updateTime,1000);
+  updateTime();
 
-  /* ===========================
-       Anti-injection detection
-     =========================== */
-  (function installWriteDetector(){
-    try{
-      // detect innerHTML writes
-      const desc = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
-      if(desc && desc.set){
-        const origSet = desc.set;
-        Object.defineProperty(Element.prototype, 'innerHTML', {
-          configurable: true,
-          get: desc.get,
-          set: function(v){
-            window.__mrs_injection = window.__mrs_injection || [];
-            window.__mrs_injection.push({type:'innerHTML', tag:this.tagName, time:Date.now()});
-            return origSet.call(this, v);
-          }
-        });
-      }
-      // detect insertAdjacentHTML
-      const origAdj = Element.prototype.insertAdjacentHTML;
-      Element.prototype.insertAdjacentHTML = function(pos, html){
-        window.__mrs_injection = window.__mrs_injection || [];
-        window.__mrs_injection.push({type:'insertAdjacentHTML', tag:this.tagName, pos, time:Date.now()});
-        return origAdj.call(this,pos,html);
-      };
-    }catch(e){
-      // 忽略兼容问题
-    }
-  })();
-
-  /* MutationObserver watch on critical nodes */
-  function installMutationWatch(){
-    const tamperEl = document.getElementById('tamper');
-    const targets = [document.getElementById('page'), document.getElementById('clouds')];
-    const obs = new MutationObserver((mutations)=>{
-      for(const m of mutations){
-        if(m.type === 'childList'){
-          for(const n of m.addedNodes){
-            if(n.nodeType === 1 && (n.tagName === 'SCRIPT' || n.tagName === 'IFRAME' || n.tagName === 'OBJECT')){
-              // suspicious
-              tamperEl.style.display = 'flex';
-              tamperEl.setAttribute('aria-hidden','false');
-              console.error('[Tamper] 检测到可疑添加节点', n);
-              return;
-            }
-          }
-        }
-        if(m.type === 'characterData' || m.type === 'attributes'){
-          // count changes; if many -> lock
-          window.__mrs_mutations = (window.__mrs_mutations || 0) + 1;
-          if(window.__mrs_mutations > 8){
-            tamperEl.style.display = 'flex';
-            tamperEl.setAttribute('aria-hidden','false');
-            console.error('[Tamper] 多次关键 DOM 变动，进入安全模式');
-            return;
-          }
-        }
-      }
-    });
-    for(const t of targets) if(t) obs.observe(t, { attributes:true, subtree:true, childList:true, characterData:true });
-    // refresh button
-    document.getElementById('tamperRefresh').addEventListener('click', ()=> location.reload());
-  }
-
-  /* Protected block verification */
-  async function verifyProtected(){
-    const el = document.getElementById('protectedScript');
-    if(!el) return true;
-    const txt = (el.textContent || '').trim();
-    if(!txt) return true;
-    const h = await sha256Base64Url(txt);
-    if(expectedHash_b64url === 'REPLACE_WITH_REAL_HASH_AT_BUILD_TIME'){
-      console.warn('[Integrity] expectedHash 未设置 — 跳过强校验（建议 build 时替换）');
-      return true;
-    }
-    return h === expectedHash_b64url;
-  }
-
-  /* ===========================
-       Clouds: Canvas rendering (l1)
-     =========================== */
-  function startClouds(){
-    const canvas = document.getElementById('clouds');
-    const ctx = canvas.getContext('2d');
-    let DPR = Math.max(1, window.devicePixelRatio || 1);
-    function resize(){
-      canvas.width = Math.ceil(window.innerWidth * DPR);
-      canvas.height = Math.ceil(window.innerHeight * DPR);
-      canvas.style.width = window.innerWidth + 'px';
-      canvas.style.height = window.innerHeight + 'px';
-      ctx.setTransform(DPR,0,0,DPR,0,0);
-    }
-    window.addEventListener('resize', resize, {passive:true});
-    resize();
-
-    // clouds pool
-    const clouds = [];
-    for(let i=0;i<7;i++){
-      clouds.push({
-        x: -200 - Math.random()*800,
-        y: Math.random() * window.innerHeight * 0.8,
-        w: 120 + Math.random()*340,
-        h: 60 + Math.random()*120,
-        speed: 6 + Math.random()*36,
-        alpha: 0.45 + Math.random()*0.5,
-        wobble: Math.random()*0.8 + 0.6
-      });
-    }
-
-    let last = performance.now();
-    function frame(now){
-      const dt = Math.min(60,(now-last)/1000); last = now;
-      ctx.clearRect(0,0,canvas.width/DPR,canvas.height/DPR);
-
-      // subtle background tint (keeps l1 feel)
-      const g = ctx.createLinearGradient(0,0,0,canvas.height/DPR);
-      g.addColorStop(0,'rgba(179,226,255,0.14)');
-      g.addColorStop(1,'rgba(220,245,255,0.08)');
-      ctx.fillStyle = g;
-      ctx.fillRect(0,0,canvas.width/DPR,canvas.height/DPR);
-
-      // draw clouds
-      for(const c of clouds){
-        c.x += c.speed * dt;
-        c.y += Math.sin((now / 1000) * c.wobble + c.x * 0.0007) * 0.2;
-        if(c.x - c.w > window.innerWidth + 200){
-          // recycle
-          c.x = -c.w - Math.random()*200;
-          c.y = Math.random() * window.innerHeight * 0.8;
-          c.speed = 8 + Math.random()*34;
-        }
-        ctx.save();
-        ctx.globalAlpha = c.alpha;
-        // draw layered ellipses to make a soft cloud
-        const cx = c.x, cy = c.y, w = c.w, h = c.h;
-        ctx.beginPath();
-        ctx.ellipse(cx + w*0.2, cy, w*0.58, h*0.6, 0, 0, Math.PI*2);
-        ctx.ellipse(cx + w*0.5, cy - h*0.12, w*0.75, h*0.7, 0, 0, Math.PI*2);
-        ctx.ellipse(cx + w*0.8, cy, w*0.5, h*0.55, 0, 0, Math.PI*2);
-        const gg = ctx.createLinearGradient(cx, cy-h, cx, cy+h);
-        gg.addColorStop(0,'rgba(255,255,255,0.98)');
-        gg.addColorStop(1,'rgba(245,250,255,0.9)');
-        ctx.fillStyle = gg;
-        ctx.fill();
-        ctx.restore();
-      }
-
-      requestAnimationFrame(frame);
-    }
-    requestAnimationFrame(frame);
-  }
-
-  /* ===========================
-       Clock: real-time to second
-     =========================== */
-  function startClock(){
-    const tEl = document.getElementById('time');
-    function tick(){
-      const now = new Date();
-      const s = now.getFullYear() + '-' +
-                String(now.getMonth()+1).padStart(2,'0') + '-' +
-                String(now.getDate()).padStart(2,'0') + ' ' +
-                String(now.getHours()).padStart(2,'0') + ':' +
-                String(now.getMinutes()).padStart(2,'0') + ':' +
-                String(now.getSeconds()).padStart(2,'0');
-      tEl.textContent = s;
-    }
-    tick();
-    setInterval(tick, 1000);
-  }
-
-  /* ===========================
-       Local rate-check (approximate)
-       - 2s window, threshold 10
-       - uses localStorage + BroadcastChannel for cross-tab sync
-     =========================== */
-  const LOCAL_KEY = '__mrs_access_times_v2';
-  function localRegisterAccessAndCheck(){
-    try{
-      const now = Date.now();
-      let arr = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]');
-      arr = arr.filter(ts => now - ts <= 2000);
-      arr.push(now);
-      localStorage.setItem(LOCAL_KEY, JSON.stringify(arr));
-      try{ const bc = new BroadcastChannel('mrs_chan'); bc.postMessage({t:now}); bc.close(); }catch(e){}
-      return arr.length >= 10;
-    }catch(e){
-      return false;
+  // 防 JC 注入 & 人机验证思路（前端记录次数，仅示例，正式需后端配合）
+  let visitCount = 0;
+  const ipMap = {}; // 模拟 IP 计数
+  function registerVisit(ip){
+    ipMap[ip] = (ipMap[ip]||0)+1;
+    if(ipMap[ip]>=10){
+      alert("检测到异常访问，请进行人机验证！");
+      // 这里可以弹出验证码模块
     }
   }
-  try{
-    const bc = new BroadcastChannel('mrs_chan');
-    bc.onmessage = (ev)=>{ /* optional cross-tab hook */ };
-  }catch(e){}
+  // 测试示例：registerVisit("127.0.0.1");
+</script>
 
-  /* ===========================
-       Server check (optional)
-     =========================== */
-  async function serverCheck(){
-    if(!SERVER_CHECK_ENDPOINT) return null;
-    try{
-      const r = await fetch(SERVER_CHECK_ENDPOINT, {method:'POST', credentials:'include'});
-      if(!r.ok) return null;
-      return await r.json();
-    }catch(e){
-      return null;
-    }
-  }
-
-  /* ===========================
-       Captcha (lightweight local fallback)
-     =========================== */
-  function showLocalCaptcha(onSuccess){
-    const modal = document.getElementById('modal');
-    const qEl = document.getElementById('captchaQ');
-    const input = document.getElementById('captchaInput');
-    const submit = document.getElementById('captchaSubmit');
-    const cancel = document.getElementById('captchaCancel');
-    const msg = document.getElementById('captchaMsg');
-    modal.style.display = 'flex'; modal.setAttribute('aria-hidden','false');
-    input.value=''; msg.textContent='';
-
-    const a = Math.floor(Math.random()*9)+1;
-    const b = Math.floor(Math.random()*9)+1;
-    const op = Math.random()>0.5? '+':'-';
-    const ans = op === '+' ? a+b : a-b;
-    qEl.textContent = `${a} ${op} ${b} = ?`;
-
-    function cleanup(){ modal.style.display='none'; modal.setAttribute('aria-hidden','true'); submit.removeEventListener('click',onClick); cancel.removeEventListener('click',onCancel); }
-
-    async function onClick(){
-      if(Number(input.value.trim()) === ans){
-        cleanup();
-        if(SERVER_REPORT_ENDPOINT){
-          try{ await fetch(SERVER_REPORT_ENDPOINT, {method:'POST', body: JSON.stringify({event:'captcha_pass'}), headers:{'content-type':'application/json'}}); }catch(e){}
-        }
-        onSuccess && onSuccess(true);
-      }else{
-        msg.textContent = '答案错误，请重试';
-      }
-    }
-    function onCancel(){ cleanup(); onSuccess && onSuccess(false); }
-    submit.addEventListener('click', onClick);
-    cancel.addEventListener('click', onCancel);
-    input.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') onClick(); });
-    input.focus();
-  }
-
-  /* ===========================
-       Open main interface (fade in l2~l5)
-     =========================== */
-  function openMainInterface(){
-    document.getElementById('layer-l2').style.opacity = 0.72;
-    document.getElementById('layer-l3').style.opacity = 0.86;
-    document.getElementById('layer-l4').style.opacity = 0.22;
-    document.getElementById('layer-l5').style.opacity = 1.0;
-    const btn = document.getElementById('enterBtn');
-    btn.textContent = '已进入主界面';
-    btn.setAttribute('aria-disabled','true');
-    btn.disabled = true;
-  }
-
-  /* ===========================
-       Initialization
-     =========================== */
-  (async function init(){
-    // 1. verify protected block
-    const ok = await verifyProtected();
-    if(!ok){
-      const tamper = document.getElementById('tamper');
-      tamper.style.display = 'flex'; tamper.setAttribute('aria-hidden','false');
-      return;
-    }
-    installMutationWatch();
-    startClouds();
-    startClock();
-
-    // bind enter button with rate-check -> captcha -> open
-    document.getElementById('enterBtn').addEventListener('click', async ()=>{
-      // first ask server if configured
-      let serverResp = null;
-      if(SERVER_CHECK_ENDPOINT){
-        serverResp = await serverCheck();
-      }
-      let requireCaptcha = false;
-      if(serverResp && typeof serverResp.requireCaptcha !== 'undefined'){
-        requireCaptcha = serverResp.requireCaptcha;
-      }else{
-        requireCaptcha = localRegisterAccessAndCheck();
-      }
-
-      if(requireCaptcha){
-        // show local captcha or your hosted captcha (reCAPTCHA) here
-        showLocalCaptcha((ok)=>{
-          if(ok) openMainInterface();
-          else {
-            // failed or cancelled: show subtle hint
-          }
-        });
-      }else{
-        openMainInterface();
-      }
-    });
-
-    // keyboard accessibility: Enter on focused CTA
-    const btn = document.getElementById('enterBtn');
-    btn.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btn.click(); } });
-
-  })();
-  </script>
 </body>
 </html>
