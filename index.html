@@ -2,172 +2,146 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>灵境工作室 Mystic Realm Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>灵境工作室 - 介绍页面</title>
 <style>
   html, body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
-    background: #1a1a1a; /* 乳雅黑 */
-    color: #fff;
-    overflow-x: hidden;
-  }
-
-  /* 云朵和渐变背景 */
-  body::before {
-    content: "";
-    position: fixed;
-    top: 0; left: 0;
+    margin: 0; padding: 0;
     width: 100%; height: 100%;
-    background: linear-gradient(135deg, #1a1a1a, #222);
-    animation: gradientShift 60s ease infinite;
-    z-index: -2;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
+    background-color: #1a1a1a; /* 默认乳雅黑 */
+    color: #fff; /* 默认白字 */
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent; /* 移动端点击无蓝框 */
   }
 
-  .cloud {
-    position: fixed;
-    background: rgba(255,255,255,0.05);
-    border-radius: 50%;
-    animation: cloudMove linear infinite;
-    z-index: -1;
+  body.light { background-color: #fff; color: #000; }
+
+  .container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 20px;
+    text-align: center;
   }
 
-  @keyframes cloudMove {
-    0% { transform: translateX(-200px) translateY(0); }
-    100% { transform: translateX(100vw) translateY(0); }
+  h1 {
+    font-size: 3em; font-weight: 700;
+    margin-bottom: 30px;
   }
 
-  @keyframes gradientShift {
-    0% { background: linear-gradient(135deg, #1a1a1a, #222); }
-    50% { background: linear-gradient(135deg, #222, #2a2a2a); }
-    100% { background: linear-gradient(135deg, #1a1a1a, #222); }
-  }
-
-  nav {
-    position: fixed; top: 0; left: 0;
-    width: 100%; height: 60px;
-    display: flex; align-items: center; justify-content: center;
-    background: rgba(26,26,26,0.8);
-    backdrop-filter: blur(10px);
-    font-size: 1rem; z-index: 1000;
-  }
-
-  nav a { margin: 0 20px; text-decoration: none; color: #fff; transition: opacity 0.3s;}
-  nav a:hover { opacity: 0.6; }
-
-  .hero {
-    height: 100vh;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    text-align: center; padding: 0 20px;
-    animation: fadeIn 2s ease forwards;
-  }
-
-  .hero h1 { font-size: 3.5em; font-weight: 600; margin-bottom: 15px; }
-  .hero h2 { font-size: 1.5em; font-weight: 300; color: #aaa; margin-bottom: 40px; }
-
-  .hero .small-text {
-    font-size: 1em; color: #ccc;
-    animation: blink 2s infinite;
-    margin-bottom: 20px;
-  }
-
-  @keyframes blink {
-    0%, 50%, 100% { opacity: 0.3; }
-    25%, 75% { opacity: 1; }
-  }
-
-  .hero .cta {
+  .small-left {
+    align-self: flex-start;
     font-size: 1.2em;
-    padding: 12px 28px;
-    border: 1px solid #fff;
+    margin-bottom: 10px;
+  }
+
+  .small-right {
+    align-self: flex-end;
+    font-size: 1.2em;
+    margin-bottom: 50px;
+  }
+
+  .center-text {
+    font-size: 1.4em;
+    margin-bottom: 20px;
+    line-height: 1.6em;
+    max-width: 90%;
+  }
+
+  .cta {
+    padding: 12px 30px;
     border-radius: 30px;
+    border: 1px solid #fff;
     background: transparent;
     color: #fff;
+    font-size: 1.2em;
     cursor: pointer;
     transition: all 0.3s;
+    margin-bottom: 50px;
   }
-  .hero .cta:hover { background: #fff; color: #1a1a1a; }
 
-  .section {
-    padding: 100px 20px; text-align: center;
-    max-width: 900px; margin: 0 auto;
-  }
-  .section h3 { font-size: 2em; margin-bottom: 20px; }
-  .section p { font-size: 1.2em; line-height: 1.8em; color: #ccc; }
+  body.light .cta { border-color: #000; color: #000; }
+
+  .cta:hover { background: #fff; color: #1a1a1a; }
+  body.light .cta:hover { background: #000; color: #fff; }
 
   footer {
-    background: #1a1a1a;
-    text-align: center; padding: 40px 20px;
-    font-size: 0.9em; color: #777;
+    text-align: center;
+    font-size: 0.9em;
+    margin-bottom: 30px;
   }
 
-  @keyframes fadeIn { from {opacity:0} to {opacity:1} }
+  /* 打字动画 */
+  .typing-text {
+    display: inline-block;
+    white-space: pre-wrap;
+    overflow: hidden;
+    border-right: 2px solid #fff;
+    animation: blink-caret 1s steps(1) infinite;
+  }
+  body.light .typing-text { border-right-color: #000; }
+
+  @keyframes blink-caret {
+    0%, 50%, 100% { border-color: transparent; }
+    25%, 75% { border-color: currentColor; }
+  }
 </style>
 </head>
 <body>
 
-<!-- 云朵元素 -->
-<script>
-  for(let i=0;i<10;i++){
-    let cloud = document.createElement("div");
-    cloud.className = "cloud";
-    cloud.style.width = (50+Math.random()*100) + "px";
-    cloud.style.height = (20+Math.random()*50) + "px";
-    cloud.style.top = Math.random()*window.innerHeight + "px";
-    cloud.style.animationDuration = (60+Math.random()*60) + "s";
-    document.body.appendChild(cloud);
-  }
-</script>
+<div class="container">
+  <h1 class="typing-text" id="title">灵境工作室</h1>
 
-<nav>
-  <a href="#">首页</a><a href="#">项目</a><a href="#">团队</a><a href="#">联系</a>
-</nav>
+  <div class="small-left typing-text" id="line1">我们是干什么的?</div>
+  <div class="small-right typing-text" id="line2">app开发，安卓系统制作</div>
 
-<section class="hero">
-  <h1>灵境工作室</h1>
-  <h2>Mystic Realm Studio</h2>
-  <div class="small-text">点击进入主界面</div>
-  <button class="cta">进入</button>
-</section>
+  <div class="center-text typing-text" id="line3">我们可以做一切，想要把一切干好</div>
+  <div class="center-text typing-text" id="line4">可是我们缺少人手，需要你的加入</div>
 
-<section class="section">
-  <h3>梦想成真是什么感觉？</h3>
-  <p>做就知道了。<br>灵境工作室专注于探索虚拟与现实交织的边界，<br>在这里，创意与代码共鸣。</p>
-</section>
+  <button class="cta" onclick="window.location.href='#'">加入我们</button>
 
-<footer>
-  <div>怡境梦呓 © <span id="time"></span></div>
-</footer>
+  <footer class="typing-text" id="footer">我们欢迎您的加入，您的加入会使我们更好。<br>版权归怡境梦呓所有</footer>
+</div>
 
 <script>
-  // 实时时间
-  function updateTime() {
-    const now = new Date();
-    const timeStr = now.getFullYear() + "-" +
-      String(now.getMonth()+1).padStart(2,'0') + "-" +
-      String(now.getDate()).padStart(2,'0') + " " +
-      String(now.getHours()).padStart(2,'0') + ":" +
-      String(now.getMinutes()).padStart(2,'0') + ":" +
-      String(now.getSeconds()).padStart(2,'0');
-    document.getElementById("time").innerText = timeStr;
+  // 打字效果函数
+  function typeText(element, text, speed=50, callback=null) {
+    let i = 0;
+    element.textContent = "";
+    let interval = setInterval(() => {
+      element.textContent += text[i];
+      i++;
+      if(i >= text.length){
+        clearInterval(interval);
+        element.textContent += "Ⅰ"; // 输入标
+        if(callback) callback();
+      }
+    }, speed);
   }
-  setInterval(updateTime,1000);
-  updateTime();
 
-  // 防 JC 注入 & 人机验证思路（前端记录次数，仅示例，正式需后端配合）
-  let visitCount = 0;
-  const ipMap = {}; // 模拟 IP 计数
-  function registerVisit(ip){
-    ipMap[ip] = (ipMap[ip]||0)+1;
-    if(ipMap[ip]>=10){
-      alert("检测到异常访问，请进行人机验证！");
-      // 这里可以弹出验证码模块
-    }
+  const texts = [
+    {id:"title", text:"灵境工作室"},
+    {id:"line1", text:"我们是干什么的?"},
+    {id:"line2", text:"app开发，安卓系统制作"},
+    {id:"line3", text:"我们可以做一切，想要把一切干好"},
+    {id:"line4", text:"可是我们缺少人手，需要你的加入"},
+    {id:"footer", text:"我们欢迎您的加入，您的加入会使我们更好。\n版权归怡境梦呓所有"}
+  ];
+
+  function startTyping(index=0){
+    if(index >= texts.length) return;
+    const el = document.getElementById(texts[index].id);
+    typeText(el, texts[index].text, 50, ()=>startTyping(index+1));
   }
-  // 测试示例：registerVisit("127.0.0.1");
+  startTyping();
+
+  // 模式切换示例（白色/黑色）
+  function toggleMode(){
+    document.body.classList.toggle('light');
+  }
+
+  // 可在手机端添加双击或按钮触发 toggleMode()
 </script>
 
 </body>
