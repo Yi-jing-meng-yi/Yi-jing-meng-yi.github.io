@@ -1,0 +1,114 @@
+/* styles.css
+   说明：实现响应式、视差、动画、导航与右侧菜单
+*/
+
+/* 重置基础 */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html,body { height: 100%; font-family: "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; color:#111; background:#fff;}
+a { color:inherit; text-decoration:none; }
+
+/* ---------- Loading Overlay ---------- */
+.loading-overlay {
+  position:fixed; inset:0; z-index:9999;
+  background:#fff; display:flex; align-items:center; justify-content:center;
+  transition:opacity .6s ease, transform .6s ease;
+}
+.loading-overlay.bg-ready{ background: linear-gradient(170deg,#0fa3b1,#3bb0d6); }
+.loading-overlay.hidden{ opacity:0; transform: scale(.98); pointer-events:none; }
+
+/* 中央 loading 文本 */
+.loading-inner .loading-text{
+  color:#fff; font-size:1.3rem; letter-spacing:.08em; text-align:center;
+  font-weight:600;
+}
+#dots { display:inline-block; margin-left:0.35rem; }
+
+/* dots 跳动实现（spacing 与抖动） */
+@keyframes dot-jump {
+  0% { transform: translateY(0) translateX(0); opacity:1; }
+  50% { transform: translateY(-6px) translateX(var(--dx,0)); opacity:1; }
+  100% { transform: translateY(0) translateX(0); opacity:1; }
+}
+
+/* ---------- Topbar / 导航 ---------- */
+.topbar {
+  position:fixed; left:0; right:0; top:0; z-index:800; pointer-events:none;
+  display:flex; justify-content:center; transition:transform .45s ease, opacity .3s ease;
+}
+.topbar-inner {
+  max-width:1200px; width:100%; display:flex; justify-content:space-between; align-items:center;
+  padding:8px 18px; margin:8px; background:rgba(255,255,255,0.95); border:1px solid #111;
+  border-radius:12px; box-shadow:0 6px 20px rgba(10,10,10,0.06);
+  pointer-events:auto;
+}
+.logo { display:flex; align-items:center; gap:6px; font-style:italic; }
+.logo-main { font-weight:700; font-size:1.2rem; letter-spacing:.08em; }
+.logo-c { font-size:.6rem; vertical-align:top; margin-top:-6px; }
+
+/* 汉堡菜单 */
+.hamburger { width:36px; height:28px; display:flex; flex-direction:column; justify-content:space-between; cursor:pointer; }
+.hamburger span { display:block; height:3px; border-radius:2px; background:#111; transition:transform .35s ease, opacity .2s ease; }
+.hamburger.open span:nth-child(1){ transform: rotate(25deg) translate(3px, 2px); }
+.hamburger.open span:nth-child(2){ opacity:0; transform: translateX(10px); }
+.hamburger.open span:nth-child(3){ transform: rotate(-25deg) translate(2px, -2px); }
+
+/* 右侧子菜单 */
+.side-menu {
+  position:fixed; top:0; right:0; height:100vh; width:48vw; max-width:420px;
+  background:#fff; box-shadow:-20px 0 60px rgba(10,10,10,0.12); transform:translateX(100%); transition:transform .45s cubic-bezier(.2,.9,.2,1);
+  z-index:900; padding:40px 26px;
+}
+.side-menu.open{ transform:translateX(0); }
+.side-menu ul { list-style:none; display:flex; flex-direction:column; gap:18px; }
+.side-menu li { padding:14px 18px; border-radius:8px; cursor:pointer; text-align:left; font-weight:600; }
+.side-menu li.active{ background:#111; color:#fff; }
+
+/* ---------- Page / Hero ---------- */
+.site{ position:relative; margin-top:60px; }
+.page{ min-height:100vh; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; padding:80px 20px; }
+.parallax-bg{ position:absolute; inset:0; background:linear-gradient(160deg,#e6f7ff,#d6fff8 30%, #f7f9ff 60%); z-index:0; transform-origin:center; }
+.parallax-layer{ position:absolute; inset:0; background: radial-gradient(circle at 20% 30%, rgba(0,0,0,0.03), transparent 30%), linear-gradient(180deg,#f7fbff,#eef9f9); z-index:0; }
+
+/* hero 内容 */
+.hero-inner{ position:relative; z-index:2; text-align:center; display:flex; flex-direction:column; align-items:center; gap:18px; padding-top:20vh; }
+.main-title{ font-size:clamp(36px,10vw,96px); color:#000; letter-spacing:.08em; font-weight:900; }
+.subtitle{ color:#444; font-size:1.05rem; }
+
+/* lock area: 黑色方块与细边框链状效果（默认隐藏） */
+.lock-area{ position:relative; margin-top:28px; width:420px; height:220px; pointer-events:none; opacity:0; transform:translateY(20px); transition:opacity .6s ease, transform .6s ease; }
+.lock-area.visible{ opacity:1; transform:translateY(0); }
+.black-box{ position:absolute; left:50%; transform:translateX(-50%); top:0; width:70px; height:70px; background:#000; box-shadow:0 10px 30px rgba(0,0,0,.25); border-radius:6px; }
+.border-frame{ position:absolute; left:calc(50% - 100px); top:90px; width:200px; height:120px; border:2px solid rgba(0,0,0,0.85); border-radius:6px; display:flex; align-items:flex-end; justify-content:center; color:#fff; overflow:visible; }
+.border-frame .frame-left{ position:absolute; left:-30px; top:30px; transform:rotate(-90deg); transform-origin:left top; color:#111; background:#fff; padding:4px 8px; border-radius:4px; font-weight:700; }
+.border-frame .frame-bottom{ position:absolute; bottom:6px; font-weight:700; color:#fff; }
+
+/* chain（右下延伸连接） */
+.chain{ position:absolute; right: -30px; top: 40px; width:140px; height:4px; background: linear-gradient(90deg,#000,#333); transform:rotate(12deg); border-radius:2px; }
+
+/* guide hint */
+.guide-hint{ position:fixed; top:50%; right:10%; transform:translateY(-50%); background:rgba(0,0,0,.75); color:#fff; padding:8px 12px; border-radius:8px; font-weight:600; display:none; z-index:700; }
+.guide-hint.visible{ display:block; }
+
+/* ---------- About 页 ---------- */
+.about-inner{ position:relative; z-index:2; padding:40px; max-width:900px; background:rgba(255,255,255,0.85); border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,.06); }
+.about-inner h2{ font-size:2rem; margin-bottom:12px; }
+
+/* ---------- 响应式调整 ---------- */
+@media (max-width:900px) {
+  .topbar-inner { padding:8px 14px; margin:8px; }
+  .side-menu{ width:70vw; max-width:none; }
+  .lock-area{ width:320px; height:180px; }
+  .guide-hint{ display:none; }
+}
+@media (max-width:480px) {
+  .topbar-inner{ padding:6px 10px; border-radius:8px; }
+  .main-title{ font-size:36px; }
+  .hamburger{ width:30px; height:22px; }
+}
+
+/* ---------- 页面过渡（切换动画） ---------- */
+.page-enter { animation: pageEnter .6s ease both; }
+@keyframes pageEnter {
+  from { opacity:0; transform: translateY(16px); filter: blur(6px); }
+  to { opacity:1; transform: translateY(0); filter: blur(0); }
+}
