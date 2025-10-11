@@ -1,75 +1,65 @@
 <!doctype html>
+
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>YJM — MAKE ALL</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>YJM — 静态演示</title>
+  <!-- 引入主目录中的 CSS 资源 -->
+  <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
+  <div class="app" id="app"><!-- Loading 屏幕 -->
+<div class="loading-wrap" id="loading">
+  <div class="loading-box">
+    <div># 请等待</div>
+    <div class="dots" id="dots">……</div>
+  </div>
+</div>
 
-  <!-- Loading 覆盖层：由 createLoadingPage 控制 -->
-  <div id="loading-overlay" class="loading-overlay" aria-hidden="true">
-    <div class="loading-inner">
-      <div class="loading-text">请等待<span id="dots">……</span></div>
+<!-- 顶部导航 -->
+<div class="top-nav hidden" id="topNav">
+  <div class="logo">YJM <small>©️</small></div>
+  <div class="nav-toggle">
+    <div class="burger" id="burger" tabindex="0" aria-label="菜单">
+      <span></span><span></span><span></span>
     </div>
   </div>
+</div>
 
-  <!-- 全局导航 / 引导栏 -->
-  <header id="topbar" class="topbar">
-    <div class="topbar-inner">
-      <div class="logo">
-        <span class="logo-main">YJM</span><span class="logo-c">©</span>
-      </div>
-      <div class="hamburger" id="hamburger" aria-label="菜单" tabindex="0">
-        <span></span><span></span><span></span>
-      </div>
-    </div>
-  </header>
+<!-- 侧边菜单 -->
+<nav class="side-menu" id="sideMenu" aria-hidden="true">
+  <div class="menu-inner">
+    <a href="index.html#home" class="active" data-target="home">主页</a>
+    <a href="index.html#about" data-target="about">关于</a>
+  </div>
+</nav>
 
-  <!-- 右侧半屏子菜单 -->
-  <nav id="sideMenu" class="side-menu" aria-hidden="true">
-    <ul>
-      <li data-target="home" class="active">主页</li>
-      <li data-target="about">关于</li>
-    </ul>
-  </nav>
+<!-- 黑色方块与链式边框 -->
+<div class="square-chain" id="squareChain" style="opacity:0;pointer-events:none">
+  <div class="frame"><div class="inner-text">这里是YJM官网</div></div>
+  <div class="left-text">欢迎</div>
+</div>
 
-  <main id="site" class="site">
-    <!-- Hero / 主页面 -->
-    <section id="home" class="page hero" data-page="home">
-      <!-- 视差背景层 -->
-      <div class="parallax parallax-bg" data-speed="0.2"></div>
+<!-- 页面切换遮罩 -->
+<div class="page-enter" id="pageMask"></div>
 
-      <div class="hero-inner">
-        <h1 id="mainTitle" class="main-title">MAKE ALL</h1>
-        <p class="subtitle">This will be everything wild and imaginative</p>
+<!-- 主内容 -->
+<main>
+  <section id="home" class="hero parallax" data-page="home">
+    <h1 class="title" id="mainTitle">MAKE ALL</h1>
+    <p class="subtitle">This will be everything wild and imaginative</p>
+    <div class="hero-interaction-cue" id="heroCue"></div>
+  </section>
 
-        <!-- 方块与边框链状容器（默认隐藏，滚动动作出现） -->
-        <div class="lock-area" id="lockArea" aria-hidden="true">
-          <div class="black-box"></div>
-          <div class="border-frame">
-            <div class="frame-left">欢迎</div>
-            <div class="frame-bottom">这里是YJM官网</div>
-          </div>
-          <div class="chain"></div>
-        </div>
-      </div>
+  <section id="about" class="about" data-page="about">
+    <h2 style="font-size:2rem;margin-top:2rem">关于 — YJM</h2>
+    <p>这里是关于页的静态示例，演示从主页到关于页的高级转场动画与视差滚动。</p>
+    <div style="height:60vh"></div>
+  </section>
+</main>
 
-      <!-- 引导提示（向上滚动时） -->
-      <div class="guide-hint" id="guideHint">向上滑动查看更多</div>
-    </section>
+<div class="meta-notes">/ 交互设计 · 高级转页 · 视差滚动</div>
 
-    <!-- About 页面 -->
-    <section id="about" class="page about" data-page="about">
-      <div class="parallax parallax-layer" data-speed="0.5"></div>
-      <div class="about-inner">
-        <h2>关于 YJM</h2>
-        <p>这是一个静态示例页面，重点展示高级转页动画和视差、交互设计。</p>
-      </div>
-    </section>
-  </main>
-
-  <script src="script.js"></script>
-</body>
+  </div>  <!-- 引入主目录中的 JS 文件 -->  <script src="./script.js"></script></body>
 </html>
