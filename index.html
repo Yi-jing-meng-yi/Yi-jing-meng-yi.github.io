@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的博客</title>
+    <style>
+        :root {
+            --primary-bg: #f5e6d3; /* 黄棕色背景 */
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --accent-color: #8b4513;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            line-height: 1.6;
+            transition: background-color 0.3s;
+        }
+        
+        /* 导航栏样式 */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            background-color: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--accent-color);
+        }
+        
+        /* 主容器 */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        /* 博客卡片网格 */
+        .blog-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        
+        /* 博客卡片 */
+        .blog-card {
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }
+        
+        .blog-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .card-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .card-title {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+            color: var(--accent-color);
+        }
+        
+        .card-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: #666;
+        }
+        
+        .card-content {
+            padding: 1.5rem;
+        }
+        
+        .card-excerpt {
+            color: #555;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        /* 博客详情页 */
+        .blog-detail {
+            display: none;
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        
+        .back-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .back-button:hover {
+            background-color: #6b3710;
+        }
+        
+        .blog-header {
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .blog-title {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: var(--accent-color);
+        }
+        
+        .blog-meta {
+            display: flex;
+            gap: 1rem;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .blog-content {
+            line-height: 1.8;
+        }
+        
+        .blog-content h1, .blog-content h2, .blog-content h3 {
+            margin: 1.5rem 0 1rem;
+            color: var(--accent-color);
+        }
+        
+        .blog-content p {
+            margin-bottom: 1rem;
+        }
+        
+        .blog-content blockquote {
+            border-left: 4px solid var(--accent-color);
+            padding-left: 1rem;
+            margin: 1.5rem 0;
+            color: #555;
+            font-style: italic;
+        }
+        
+        .blog-content code {
+            background-color: #f5f5f5;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .blog-content pre {
+            background-color: #f5f5f5;
+            padding: 1rem;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+        }
+        
+        .blog-content ul, .blog-content ol {
+            margin: 1rem 0 1rem 2rem;
+        }
+        
+        /* 自定义背景颜色 */
+        .bg-customizer {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background-color: white;
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .bg-customizer label {
+            font-size: 0.9rem;
+        }
+        
+        .bg-customizer input {
+            width: 100%;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .blog-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .navbar {
+                padding: 1rem;
+            }
+            
+            .container {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="logo">我的博客</div>
+        <div class="user-info">
+            <span>用户名</span>
+            <img src="https://via.placeholder.com/40" alt="头像" class="avatar">
+        </div>
+    </nav>
+    
+    <!-- 主容器 -->
+    <div class="container">
+        <!-- 博客卡片网格 -->
+        <div class="blog-grid" id="blogGrid">
+            <!-- 博客卡片将通过JavaScript动态生成 -->
+        </div>
+        
+        <!-- 博客详情页 -->
+        <div class="blog-detail" id="blogDetail">
+            <button class="back-button" id="backButton">返回</button>
+            <div class="blog-header">
+                <h1 class="blog-title" id="detailTitle">博客标题</h1>
+                <div class="blog-meta">
+                    <span id="detailAuthor">作者</span>
+                    <span id="detailDate">日期</span>
+                    <span id="detailId">ID</span>
+                </div>
+            </div>
+            <div class="blog-content" id="detailContent">
+                <!-- 博客内容将通过JavaScript动态生成 -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- 背景颜色自定义器 -->
+    <div class="bg-customizer">
+        <label for="bgColor">自定义背景颜色:</label>
+        <input type="color" id="bgColor" value="#f5e6d3">
+    </div>
+    
+    <script>
+        // 示例博客数据 - 在实际应用中，这些数据将从GitHub Pages的Markdown文件中获取
+        const blogPosts = [
+            {
+                id: "blog-001",
+                title: "JavaScript基础入门",
+                author: "张三",
+                date: "2023-10-15",
+                excerpt: "学习JavaScript的基本语法和概念，为前端开发打下坚实基础。",
+                content: `# JavaScript基础入门
+
+JavaScript是一种轻量级的解释型编程语言，主要用于网页交互。
+
+## 变量声明
+
+\`\`\`javascript
+// 使用let声明变量
+let name = "张三";
+// 使用const声明常量
+const PI = 3.14159;
+\`\`\`
+
+## 函数
+
+函数是JavaScript中的一等公民：
+
+\`\`\`javascript
+function greet(name) {
+    return "Hello, " + name + "!";
+}
+
+// 箭头函数
+const add = (a, b) => a + b;
+\`\`\`
+
+> 提示：JavaScript是动态类型语言，变量类型在运行时确定。
+
+<div style="background-color: #f0f8ff; padding: 10px; border-radius: 5px;">
+这是一个HTML元素示例，展示了如何在Markdown中嵌入自定义HTML。
+</div>
+`
+            },
+            {
+                id: "blog-002",
+                title: "CSS Grid布局详解",
+                author: "李四",
+                date: "2023-10-10",
+                excerpt: "深入了解CSS Grid布局系统，创建复杂的响应式网页设计。",
+                content: `# CSS Grid布局详解
+
+CSS Grid布局是创建二维布局的强大工具。
+
+## 基本概念
+
+Grid布局将容器分为行和列，形成网格。
+
+\`\`\`css
+.container {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-gap: 20px;
+}
+\`\`\`
+
+## 网格项定位
+
+可以使用以下属性定位网格项：
+
+- \`grid-column\`
+- \`grid-row\`
+- \`grid-area\`
+
+> 注意：Grid布局在现代浏览器中得到广泛支持。
+
+<div class="custom-element">
+<style>
+.custom-element {
+    background: linear-gradient(45deg, #ff9a9e, #fad0c4);
+    padding: 15px;
+    border-radius: 8px;
+    color: white;
+    text-align: center;
+}
+</style>
+这是一个带有内联样式的自定义HTML元素。
+</div>
+`
+            },
+            {
+                id: "blog-003",
+                title: "Vue.js响应式原理",
+                author: "王五",
+                date: "2023-10-05",
+                excerpt: "探索Vue.js的响应式系统如何工作，以及数据绑定背后的魔法。",
+                content: `# Vue.js响应式原理
+
+Vue.js的响应式系统是其核心特性之一。
+
+## 数据劫持
+
+Vue使用Object.defineProperty或Proxy来劫持数据变化。
+
+\`\`\`javascript
+// 简化版的响应式实现
+function defineReactive(obj, key, val) {
+    Object.defineProperty(obj, key, {
+        get() {
+            console.log('读取:', key);
+            return val;
+        },
+        set(newVal) {
+            console.log('设置:', key, newVal);
+            val = newVal;
+            // 触发更新
+        }
+    });
+}
+\`\`\`
+
+## 依赖收集
+
+Vue通过依赖收集来知道哪些组件需要更新。
+
+> 提示：Vue 3使用Proxy替代Object.defineProperty，提供了更好的性能。
+
+<blockquote style="border-left: 4px solid #42b883; background-color: #f9f9f9; padding: 10px;">
+Vue.js的响应式系统是其最强大的特性之一，使得开发复杂的单页应用变得更加简单。
+</blockquote>
+`
+            }
+        ];
+
+        // DOM元素
+        const blogGrid = document.getElementById('blogGrid');
+        const blogDetail = document.getElementById('blogDetail');
+        const backButton = document.getElementById('backButton');
+        const detailTitle = document.getElementById('detailTitle');
+        const detailAuthor = document.getElementById('detailAuthor');
+        const detailDate = document.getElementById('detailDate');
+        const detailId = document.getElementById('detailId');
+        const detailContent = document.getElementById('detailContent');
+        const bgColorInput = document.getElementById('bgColor');
+
+        // 渲染博客卡片
+        function renderBlogCards() {
+            blogGrid.innerHTML = '';
+            
+            blogPosts.forEach(post => {
+                const card = document.createElement('div');
+                card.className = 'blog-card';
+                card.dataset.id = post.id;
+                
+                card.innerHTML = `
+                    <div class="card-header">
+                        <h2 class="card-title">${post.title}</h2>
+                        <div class="card-meta">
+                            <span>${post.author}</span>
+                            <span>${post.date}</span>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <p class="card-excerpt">${post.excerpt}</p>
+                    </div>
+                `;
+                
+                card.addEventListener('click', () => openBlogDetail(post.id));
+                blogGrid.appendChild(card);
+            });
+        }
+
+        // 打开博客详情
+        function openBlogDetail(blogId) {
+            const post = blogPosts.find(p => p.id === blogId);
+            if (!post) return;
+            
+            detailTitle.textContent = post.title;
+            detailAuthor.textContent = post.author;
+            detailDate.textContent = post.date;
+            detailId.textContent = post.id;
+            detailContent.innerHTML = marked.parse(post.content);
+            
+            blogGrid.style.display = 'none';
+            blogDetail.style.display = 'block';
+        }
+
+        // 返回博客列表
+        function backToBlogList() {
+            blogDetail.style.display = 'none';
+            blogGrid.style.display = 'grid';
+        }
+
+        // 自定义背景颜色
+        function updateBackgroundColor() {
+            document.documentElement.style.setProperty('--primary-bg', bgColorInput.value);
+        }
+
+        // 事件监听
+        backButton.addEventListener('click', backToBlogList);
+        bgColorInput.addEventListener('input', updateBackgroundColor);
+
+        // 初始化
+        renderBlogCards();
+    </script>
+    
+    <!-- Marked.js库用于解析Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</body>
+</html>
